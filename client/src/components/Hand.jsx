@@ -29,6 +29,7 @@ export default function Hand() {
   const [selectedSector, setSelectedSector] = useState(null);
   const [selectedZone, setSelectedZone] = useState(null);
   const [selectedOpponent, setSelectedOpponent] = useState(null);
+  const [pivotSector, setPivotSector] = useState(null);   // for Pivot card portfolio/opponent
   const [targetCard, setTargetCard] = useState(null);
   const [targetLocation, setTargetLocation] = useState(null); // 'portfolio' | 'market'
 
@@ -81,11 +82,15 @@ export default function Hand() {
   }
 
   // ── Confirm button logic ───────────────────────────────────────────────────
+  const isPivot = selectedCard?.type === 'pivot';
+
   const canConfirm =
     selectedCard &&
-    (turnStep === 'allocate_portfolio' ||
+    (
+      (turnStep === 'allocate_portfolio' && (!isPivot || pivotSector)) ||
       (turnStep === 'allocate_market' && selectedSector && selectedZone) ||
-      (turnStep === 'allocate_opponent' && selectedOpponent));
+      (turnStep === 'allocate_opponent' && selectedOpponent && (!isPivot || pivotSector))
+    );
 
   function handleConfirm() {
     if (!canConfirm) return;
@@ -93,11 +98,13 @@ export default function Hand() {
     const extra = {};
     if (step === 'market') { extra.sector = selectedSector; extra.zone = selectedZone; }
     if (step === 'opponent') { extra.targetPlayerId = selectedOpponent; }
+    if (isPivot && step !== 'market') extra.pivotSector = pivotSector;
     allocateCard(selectedCard.id, step, extra);
     setSelectedCard(null);
     setSelectedSector(null);
     setSelectedZone(null);
     setSelectedOpponent(null);
+    setPivotSector(null);
     window.Telegram?.WebApp?.MainButton?.hide?.();
   }
 
@@ -127,7 +134,11 @@ export default function Hand() {
             card={card}
             faceDown={false}
             selected={selectedCard?.id === card.id}
-            onClick={() => setSelectedCard(selectedCard?.id === card.id ? null : card)}
+            onClick={() => {
+              const toggled = selectedCard?.id === card.id ? null : card;
+              setSelectedCard(toggled);
+              setPivotSector(null); // reset pivot choice on card change
+            }}
           />
         ))}
       </div>
@@ -149,6 +160,11 @@ export default function Hand() {
         />
       )}
 
+      {/* Pivot sector picker — shown when a Pivot card is played to portfolio or opponent */}
+      {isPivot && (turnStep === 'allocate_portfolio' || turnStep === 'allocate_opponent') && (
+        <PivotSectorSelector selectedSector={pivotSector} onSelect={setPivotSector} />
+      )}
+
       {/* Confirm button */}
       <button
         disabled={!canConfirm}
@@ -160,6 +176,33 @@ export default function Hand() {
       >
         Confirm
       </button>
+    </div>
+  );
+}
+
+function PivotSectorSelector({ selectedSector, onSelect }) {
+  return (
+    <div className="flex flex-col gap-1">
+      <p className="text-xs text-gray-400 text-center">🔄 Choose which sector this Pivot represents:</p>
+      <div className="grid grid-cols-2 gap-1.5">
+        {SECTORS.map((sector) => {
+          const meta = SECTOR_META[sector];
+          const active = selectedSector === sector;
+          return (
+            <button
+              key={sector}
+              onClick={() => onSelect(sector)}
+              className={`rounded-lg px-3 py-2 text-xs font-semibold border transition-colors
+                ${active
+                  ? 'border-yellow-400 bg-yellow-900/50 text-yellow-300'
+                  : 'border-gray-600 bg-gray-800 text-gray-300 hover:border-gray-400'}`}
+              style={active ? {} : { borderColor: meta.color + '55' }}
+            >
+              <span style={{ color: meta.color }}>■</span> {meta.label}
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }

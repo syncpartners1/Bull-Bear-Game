@@ -29,8 +29,10 @@ const CARD_DEFINITIONS = [
   ...SECTORS.flatMap((sector) =>
     Array.from({ length: 3 }, () => ({ type: 'hostile_takeover', sector, value: 1 }))
   ),
+  // pivot: 4 copies — no fixed sector; player chooses when played
+  ...Array.from({ length: 4 }, () => ({ type: 'pivot', sector: null, value: 1 })),
 ];
-// Total: 88 cards
+// Total: 92 cards
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -171,8 +173,24 @@ export function allocateCard(state, playerId, cardId, step, extra = {}) {
     return { state, error: `Expected step allocate_${step}, got ${state.turnStep}` };
   }
 
-  const card = state._turnCardMap[cardId];
+  let card = state._turnCardMap[cardId];
   if (!card) return { state, error: 'Card data not found' };
+
+  // ── Pivot sector resolution ──────────────────────────────────────────────
+  // Pivot cards have no fixed sector; the sector is chosen at play time.
+  // For market placement, the sector is implicit from the chosen zone.
+  // For portfolio / opponent placement, the player must supply pivotSector.
+  if (card.type === 'pivot') {
+    if (step === 'market') {
+      if (!SECTORS.includes(extra.sector)) return { state, error: 'Invalid sector for Pivot card' };
+      card = { ...card, sector: extra.sector };
+    } else {
+      if (!SECTORS.includes(extra.pivotSector)) {
+        return { state, error: 'Pivot card requires a sector selection (pivotSector)' };
+      }
+      card = { ...card, sector: extra.pivotSector };
+    }
+  }
 
   let newState = removeTurnCard(state, cardId);
   let activateAbility = false;
@@ -307,9 +325,10 @@ export function calculateScores(state) {
     })
   );
 
-  // Step 2: base scores
+  // Step 2: base scores (skip cards with no resolved sector — shouldn't happen)
   let players = state.players.map((p) => {
     const baseScore = p.portfolio.reduce((total, card) => {
+      if (!card.sector || !market[card.sector]) return total;
       return total + card.value * market[card.sector].index;
     }, 0);
     return { ...p, score: baseScore };

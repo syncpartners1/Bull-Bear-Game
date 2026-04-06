@@ -20,9 +20,11 @@ const TYPE_SUFFIX = {
 
 /**
  * Returns the import path for a card face image.
- * Assets must be placed in client/src/assets/cards/ with the naming convention above.
+ * Pivot cards use a single sector-independent image: Pivot_card.png
+ * All others: {SectorPrefix}_{TypeSuffix}.png
  */
 export function getCardImagePath(sector, type) {
+  if (type === 'pivot') return '/src/assets/cards/Pivot_card.png';
   const prefix = SECTOR_PREFIX[sector];
   const suffix = TYPE_SUFFIX[type];
   if (!prefix || !suffix) return null;
@@ -45,7 +47,12 @@ export const CARD_TYPE_META = {
   insider_trading:  { label: 'Insider Trading',   icon: '🔒', value: 1 },
   strategic_merger: { label: 'Strategic Merger',  icon: '🤝', value: 2 },
   hostile_takeover: { label: 'Hostile Takeover',  icon: '⚔️', value: 1 },
+  pivot:            { label: 'Pivot',             icon: '🔄', value: 1 },
   hidden:           { label: 'Hidden Card',       icon: '❓', value: '?' },
 };
 
-export const MISSION_BACK_PATH = '/src/assets/cards/Mission_Back.png';
+// Mission card back images — separate art per mission type
+export const MISSION_BACK_PATHS = {
+  market:   '/src/assets/cards/market_mission.png',
+  strategy: '/src/assets/cards/Strategy_Mission.png',
+};

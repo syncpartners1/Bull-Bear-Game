@@ -1,6 +1,6 @@
 // client/src/components/MissionCard.jsx
 import { useState, useEffect } from 'react';
-import { MISSION_BACK_PATH, SECTOR_META } from '../utils/cardAssets.js';
+import { MISSION_BACK_PATHS, SECTOR_META } from '../utils/cardAssets.js';
 
 const MISSION_TYPE_STYLE = {
   market:   { border: 'border-yellow-500', bg: 'bg-yellow-900/50', icon: '📊' },
@@ -65,13 +65,13 @@ export default function MissionCard({ mission, showBack = false }) {
           </div>
         </div>
 
-        {/* Back — mission card back image */}
+        {/* Back — mission card back image (market vs strategy have separate art) */}
         <div
           className="card-back absolute inset-0 rounded-xl overflow-hidden border-2 border-gray-600 shadow-lg"
           style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}
         >
           <img
-            src={MISSION_BACK_PATH}
+            src={MISSION_BACK_PATHS[mission.missionType] ?? MISSION_BACK_PATHS.strategy}
             alt="Mission"
             className="w-full h-full object-cover"
             onError={(e) => {
