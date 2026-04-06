@@ -1,0 +1,37 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Card flip animation */
+.card-flip {
+  perspective: 1000px;
+}
+.card-flip-inner {
+  transition: transform 0.6s;
+  transform-style: preserve-3d;
+  position: relative;
+}
+.card-flip.flipped .card-flip-inner {
+  transform: rotateY(180deg);
+}
+.card-face, .card-back {
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  position: absolute;
+  inset: 0;
+}
+.card-back {
+  transform: rotateY(180deg);
+}
+
+/* Telegram theme vars fallback */
+:root {
+  --tg-bg-color: #1a1a2e;
+  --tg-button-color: #3B82F6;
+  --tg-button-text-color: #ffffff;
+}
+
+html, body, #root {
+  height: 100%;
+  overscroll-behavior: none;
+}
