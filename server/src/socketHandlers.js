@@ -20,6 +20,7 @@ import {
   registerSocket,
   handleDisconnect,
 } from './gameState.js';
+import { verifyInitData } from './telegramAuth.js';
 
 // ─── Broadcast helpers ────────────────────────────────────────────────────────
 
@@ -46,16 +47,30 @@ export function registerHandlers(io, socket) {
   // ── join_game ─────────────────────────────────────────────────────────────
   // Payload: { gameId?: string, telegramInitData: string, name: string, telegramId: string }
   // Omit gameId to create a new lobby; include it to join an existing one.
-  socket.on('join_game', ({ gameId, name, telegramId }) => {
+  socket.on('join_game', ({ gameId, telegramInitData, name, telegramId }) => {
+    // Verify the request came from a real Telegram client
+    const auth = verifyInitData(telegramInitData);
+    if (!auth.valid) {
+      emitError(socket, `Authentication failed: ${auth.error}`);
+      return;
+    }
+
+    // Prefer verified identity from initData; fall back to client-supplied values
+    const verifiedUser = auth.data?.user;
+    const resolvedTelegramId = String(verifiedUser?.id ?? telegramId ?? socket.id);
+    const resolvedName = verifiedUser
+      ? (verifiedUser.first_name + (verifiedUser.last_name ? ` ${verifiedUser.last_name}` : ''))
+      : (name || 'Player');
+
     const player = {
-      id: uuidv4(),
-      telegramId: String(telegramId ?? socket.id),
-      name: name || 'Player',
-      socketId: socket.id,
-      portfolio: [],
-      score: 0,
-      missions: [],
-      connected: true,
+      id:         uuidv4(),
+      telegramId: resolvedTelegramId,
+      name:       resolvedName,
+      socketId:   socket.id,
+      portfolio:  [],
+      score:      0,
+      missions:   [],
+      connected:  true,
     };
 
     if (!gameId) {
