@@ -109,9 +109,9 @@ export function GameProvider({ children }) {
     socket.emit('join_game', { gameId, telegramId, name });
   }, [socket]);
 
-  const startGame = useCallback(() => {
+   const startGame = useCallback((aiCount = 0) => {
     if (!state.gameId) return;
-    socket.emit('start_game', { gameId: state.gameId });
+       socket.emit('start_game', { gameId: state.gameId, aiCount });
   }, [socket, state.gameId]);
 
   const allocateCard = useCallback((cardId, step, extra = {}) => {
