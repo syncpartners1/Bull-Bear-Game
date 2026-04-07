@@ -219,6 +219,24 @@ export function registerHandlers(io, socket) {
     const { state: newState, error, removedCard } = activateHostileTakeover(state, player.id, target);
     if (error) { emitError(socket, error); return; }
 
+  // Build AI player objects — each gets a distinct personality profile
+    const AI_PROFILES = ['hunter', 'jess', 'mandy', 'ruth'];
+    const aiPlayers = Array.from({ length: Math.max(0, Number(aiCount)) }, (_, i) => {
+      const profile = AI_PROFILES[i % AI_PROFILES.length];
+      return {
+        id:         uuidv4(),
+        telegramId: `ai_${i + 1}`,
+        name:       profile.charAt(0).toUpperCase() + profile.slice(1), // "Hunter", "Jess", …
+        profile,
+        socketId:   null,
+        portfolio:  [],
+        score:      0,
+        missions:   [],
+        connected:  true,
+        isAI:       true,
+      };
+    });
+
     saveGame(newState);
     broadcastGameState(io, newState);
     broadcastToRoom(io, gameId, 'hostile_takeover_activated', {
