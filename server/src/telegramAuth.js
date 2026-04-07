@@ -24,7 +24,9 @@ export function verifyInitData(initDataRaw) {
   }
 
   if (!initDataRaw) {
-    return { valid: false, data: null, error: 'No initData provided' };
+    // Not opened via Telegram (browser / dev testing) — allow unverified join.
+    // Socket handler falls back to client-supplied telegramId/name.
+    return { valid: true, data: {}, unverified: true };
   }
 
   try {
