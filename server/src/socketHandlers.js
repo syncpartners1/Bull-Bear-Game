@@ -21,8 +21,9 @@ import {
   handleDisconnect,
 } from './gameState.js';
 import { verifyInitData } from './telegramAuth.js';
+import { decideAITurn } from './aiPlayer.js';
 
-// ─── Broadcast helpers ────────────────────────────────────────────────────────
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function broadcastGameState(io, state) {
   state.players.forEach((p) => {
@@ -39,13 +40,149 @@ function broadcastToRoom(io, gameId, event, payload) {
 function emitError(socket, message) {
   socket.emit('error', { message });
 }
-
+/** Generate a unique 7-digit numeric game ID. */
+function generateGameId() {
+  let id;
+  do {
+    id = String(Math.floor(1000000 + Math.random() * 9000000));
+  } while (getLobby(id) || getGame(id));
+  return id;
+}
+ 
+/**
+ * Called after the 3rd card allocation (turnStep === 'end_turn').
+ * Runs endTurn, startTurn, and handles the reveal/scoring phase.
+ * Returns { finalState, nextTurnCards, gameOver }.
+ */
+function advanceTurn(io, state) {
+  let finalState = endTurn(state);
+ 
+  if (finalState.phase === 'reveal') {
+    finalState = revealInsiderTrading(finalState);
+    saveGame(finalState);
+    broadcastGameState(io, finalState);
+    setTimeout(() => {
+      const scored = calculateScores(finalState);
+      saveGame(scored);
+      broadcastGameState(io, scored);
+      broadcastToRoom(io, finalState.gameId, 'game_over', {
+        scores: scored.scores,
+        winnerId: scored.winnerId,
+      });
+    }, 3000);
+    return { finalState, nextTurnCards: [], gameOver: true };
+  }
+ 
+  const drawResult = startTurn(finalState);
+  finalState = drawResult.state;
+  const nextTurnCards = drawResult.drawnCards;
+ 
+  if (finalState.phase === 'reveal') {
+    finalState = revealInsiderTrading(finalState);
+    saveGame(finalState);
+    broadcastGameState(io, finalState);
+    setTimeout(() => {
+      const scored = calculateScores(finalState);
+      saveGame(scored);
+      broadcastGameState(io, scored);
+      broadcastToRoom(io, finalState.gameId, 'game_over', {
+        scores: scored.scores,
+        winnerId: scored.winnerId,
+      });
+    }, 3000);
+    return { finalState, nextTurnCards: [], gameOver: true };
+  }
+ 
+  return { finalState, nextTurnCards, gameOver: false };
+}
+ 
+/**
+ * Execute an AI player's full turn (all 3 allocations + optional hostile takeover).
+ * Delays execution slightly so clients see smooth progression.
+ */
+function processAITurn(io, state, aiPlayer, turnCards) {
+  const delay = 900 + Math.floor(Math.random() * 600); // 0.9–1.5 s
+ 
+  setTimeout(() => {
+    // Re-fetch in case state changed (disconnect, etc.)
+    const fresh = getGame(state.gameId);
+    if (!fresh) return;
+    const current = fresh.players[fresh.currentPlayerIndex];
+    if (current.id !== aiPlayer.id) return; // someone else's turn now
+ 
+    let decision;
+    try {
+      decision = decideAITurn(fresh, aiPlayer, turnCards);
+    } catch (err) {
+      console.error(`[AI:${aiPlayer.name}] decideAITurn error:`, err.message);
+      return;
+    }
+ 
+    // Resolve a valid opponent target (fallback to first non-self player)
+    const opponentTarget =
+      decision.targetPlayerId ||
+      fresh.players.find((p) => p.id !== aiPlayer.id)?.id;
+ 
+    // ── Step 1: portfolio ────────────────────────────────────────────────────
+    const r1 = allocateCard(fresh, aiPlayer.id, decision.portfolioCard.id, 'portfolio', {
+      pivotSector: decision.portfolioCard.sector,
+    });
+    if (r1.error) { console.error(`[AI:${aiPlayer.name}] portfolio:`, r1.error); return; }
+ 
+    // ── Step 2: market ───────────────────────────────────────────────────────
+    const r2 = allocateCard(r1.state, aiPlayer.id, decision.marketCard.id, 'market', {
+      sector: decision.marketSector,
+      zone:   decision.marketZone,
+    });
+    if (r2.error) { console.error(`[AI:${aiPlayer.name}] market:`, r2.error); return; }
+ 
+    // ── Step 3: opponent ─────────────────────────────────────────────────────
+    const r3 = allocateCard(r2.state, aiPlayer.id, decision.opponentCard.id, 'opponent', {
+      targetPlayerId: opponentTarget,
+      pivotSector: decision.opponentCard.sector,
+    });
+    if (r3.error) { console.error(`[AI:${aiPlayer.name}] opponent:`, r3.error); return; }
+ 
+    let workingState = r3.state;
+ 
+    // ── Hostile Takeover (optional) ──────────────────────────────────────────
+    if ((r1.activateAbility || r3.activateAbility) && decision.useHostileTakeover && decision.hostileTarget) {
+      const ht = activateHostileTakeover(workingState, aiPlayer.id, decision.hostileTarget);
+      if (!ht.error) {
+        workingState = ht.state;
+        broadcastToRoom(io, workingState.gameId, 'hostile_takeover_activated', {
+          activatedBy: aiPlayer.id,
+          removedCard: ht.removedCard,
+        });
+      }
+    }
+ 
+    // ── Advance turn ─────────────────────────────────────────────────────────
+    const { finalState, nextTurnCards, gameOver } = advanceTurn(io, workingState);
+    saveGame(finalState);
+    broadcastGameState(io, finalState);
+    if (gameOver) return;
+ 
+    // ── Notify next player ───────────────────────────────────────────────────
+    const nextPlayer = finalState.players[finalState.currentPlayerIndex];
+    if (nextPlayer.isAI) {
+      processAITurn(io, finalState, nextPlayer, nextTurnCards);
+    } else {
+      io.to(nextPlayer.socketId).emit('turn_started', {
+        playerId:  nextPlayer.id,
+        cards:     nextTurnCards,
+        turnStep:  finalState.turnStep,
+      });
+    }
+  }, delay);
+}
+ 
 // ─── Handler registration ─────────────────────────────────────────────────────
 
 export function registerHandlers(io, socket) {
 
   // ── join_game ─────────────────────────────────────────────────────────────
-  // Payload: { gameId?: string, telegramInitData: string, name: string, telegramId: string }
+  // Payload: { gameId?: string, telegramInitData?: string, name: string, telegramId: string }
   // Omit gameId to create a new lobby; include it to join an existing one.
   socket.on('join_game', ({ gameId, telegramInitData, name, telegramId }) => {
     // Verify the request came from a real Telegram client
@@ -74,8 +211,8 @@ export function registerHandlers(io, socket) {
     };
 
     if (!gameId) {
-      // Create new lobby
-      const newGameId = uuidv4();
+      // Create new lobby with a 7-digit game ID
+      const newGameId = generateGameId();
       createLobby(newGameId, player);
       socket.join(newGameId);
       registerSocket(socket.id, newGameId);
@@ -95,8 +232,8 @@ export function registerHandlers(io, socket) {
   });
 
   // ── start_game ────────────────────────────────────────────────────────────
-  // Payload: { gameId: string }
-  socket.on('start_game', ({ gameId }) => {
+  // Payload: { gameId: string, aiCount?: number }
+  socket.on('start_game', ({ gameId, aiCount = 0 }) => {
     const lobby = getLobby(gameId);
     if (!lobby) { emitError(socket, 'Lobby not found'); return; }
 
@@ -105,10 +242,35 @@ export function registerHandlers(io, socket) {
       emitError(socket, 'Only the host can start the game'); return;
     }
     if (lobby.players.length < 2) {
-      emitError(socket, 'Need at least 2 players to start'); return;
+    const numAI      = Math.max(0, Math.min(4, Number(aiCount) || 0));
+    const totalCount = lobby.players.length + numAI;
+ 
+    if (totalCount < 2) {
+      emitError(socket, 'Need at least 2 players total (human + AI)'); return;
+    }
+    if (totalCount > 5) {
+      emitError(socket, 'Maximum 5 players total'); return;
     }
 
-    let state = createInitialState(gameId, lobby.players);
+    // Build AI player objects
+    const AI_PROFILES = ['hunter', 'jess', 'mandy', 'ruth'];
+    const AI_NAMES    = ['Hunter', 'Jess', 'Mandy', 'Ruth'];
+    const aiPlayers   = Array.from({ length: numAI }, (_, i) => ({
+      id:         uuidv4(),
+      telegramId: `ai_${i + 1}`,
+      name:       AI_NAMES[i % AI_NAMES.length],
+      profile:    AI_PROFILES[i % AI_PROFILES.length],
+      socketId:   null,
+      portfolio:  [],
+      score:      0,
+      missions:   [],
+      connected:  true,
+      isAI:       true,
+    }));
+ 
+    const allPlayers = [...lobby.players, ...aiPlayers];
+ 
+    let state = createInitialState(gameId, allPlayers);
     const { state: stateAfterDraw, drawnCards } = startTurn(state);
     state = stateAfterDraw;
 
@@ -119,12 +281,17 @@ export function registerHandlers(io, socket) {
     broadcastToRoom(io, gameId, 'game_started', { gameId });
     broadcastGameState(io, state);
 
-    const currentPlayer = state.players[state.currentPlayerIndex];
-    io.to(currentPlayer.socketId).emit('turn_started', {
-      playerId: currentPlayer.id,
-      cards: drawnCards,
-      turnStep: state.turnStep,
-    });
+    const firstPlayer = state.players[state.currentPlayerIndex];
+    if (firstPlayer.isAI) {
+      // AI goes first — kick off its turn automatically
+      processAITurn(io, state, firstPlayer, drawnCards);
+    } else {
+      io.to(firstPlayer.socketId).emit('turn_started', {
+        playerId: firstPlayer.id,
+        cards:    drawnCards,
+        turnStep: state.turnStep,
+      });
+    }
   });
 
   // ── allocate_card ─────────────────────────────────────────────────────────
@@ -141,10 +308,20 @@ export function registerHandlers(io, socket) {
       state, player.id, cardId, step, { sector, zone, targetPlayerId }
     );
     if (error) { emitError(socket, error); return; }
+    
+    // Still mid-turn — just save and broadcast
+    if (newState.turnStep !== 'end_turn') {
+      saveGame(newState);
+      broadcastGameState(io, newState);
+      socket.emit('card_allocated', { step, cardId, activateAbility: activateAbility || false });
+      return;
+    }
 
     // If all 3 allocation steps complete, advance the turn
+      const { finalState, nextTurnCards, gameOver } = advanceTurn(io, newState);
     let finalState = newState;
     let nextTurnCards = [];
+  
 
     if (newState.turnStep === 'end_turn') {
       finalState = endTurn(newState);
@@ -154,6 +331,8 @@ export function registerHandlers(io, socket) {
         finalState = revealInsiderTrading(finalState);
         broadcastGameState(io, finalState);
         saveGame(finalState);
+    socket.emit('card_allocated', { step, cardId, activateAbility: activateAbility || false });
+    if (gameOver) return;
 
         // Give clients a moment then trigger scoring
         setTimeout(() => {
@@ -196,11 +375,13 @@ export function registerHandlers(io, socket) {
     socket.emit('card_allocated', { step, cardId, activateAbility: activateAbility || false });
 
     // Notify current player to take their turn if we advanced
-    if (newState.turnStep === 'end_turn' && nextTurnCards.length > 0) {
-      const nextPlayer = finalState.players[finalState.currentPlayerIndex];
+     const nextPlayer = finalState.players[finalState.currentPlayerIndex];
+    if (nextPlayer.isAI) {
+      processAITurn(io, finalState, nextPlayer, nextTurnCards);
+    } else {
       io.to(nextPlayer.socketId).emit('turn_started', {
         playerId: nextPlayer.id,
-        cards: nextTurnCards,
+        cards:    nextTurnCards,
         turnStep: finalState.turnStep,
       });
     }

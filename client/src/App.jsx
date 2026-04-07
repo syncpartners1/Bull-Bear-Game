@@ -131,13 +131,13 @@ function LobbyPage() {
   }
 
   function handleStart() {
-    startGame(mode === 'ai' ? aiCount : 0);
+    startGame(aiCount);
   }
 
-  const isHost        = lobby?.hostId === myPlayer?.id;
-  const humanCount    = lobby?.players?.length ?? 0;
-  const totalWithAI   = mode === 'ai' ? humanCount + aiCount : humanCount;
-  const canStart      = totalWithAI >= 2 && totalWithAI <= 5;
+  const isHost      = lobby?.hostId === myPlayer?.id;
+  const humanCount  = lobby?.players?.length ?? 0;
+  const totalWithAI = humanCount + aiCount;
+  const canStart    = totalWithAI >= 2 && totalWithAI <= 5;
 
   return (
     <div className="flex flex-col items-center justify-center h-full p-6 gap-5 overflow-y-auto">
@@ -236,7 +236,16 @@ function LobbyPage() {
 
           <div className="rounded-xl border border-gray-700 bg-gray-800 p-3">
             <p className="text-xs text-gray-400 mb-1">Game ID — share with friends</p>
-            <p className="text-sm font-mono text-yellow-300 break-all">{gameId}</p>
+            <div className="flex items-center gap-2">
+              <p className="text-2xl font-mono font-bold tracking-widest text-yellow-300">{gameId}</p>
+              <button
+                onClick={() => navigator.clipboard?.writeText(gameId)}
+                className="text-[10px] text-gray-500 hover:text-yellow-300 border border-gray-600 rounded px-1.5 py-0.5 transition-colors"
+                title="Copy"
+              >
+                Copy
+              </button>
+            </div>
           </div>
 
           <div className="rounded-xl border border-gray-700 bg-gray-800 p-3">
@@ -263,18 +272,18 @@ function LobbyPage() {
             </div>
           </div>
 
-          {isHost && mode === 'ai' && (
+           {isHost && (
             <div className="rounded-xl border border-gray-700 bg-gray-800 p-3">
-              <p className="text-xs text-gray-400 mb-2">AI opponents</p>
-              <div className="flex gap-2">
-                {[1, 2, 3, 4].filter((n) => humanCount + n <= 5).map((n) => (
+              <p className="text-xs text-gray-400 mb-2">🤖 AI bots (optional)</p>
+              <div className="flex gap-2 flex-wrap">
+                {[0, 1, 2, 3, 4].filter((n) => humanCount + n <= 5).map((n) => (
                   <button
                     key={n}
                     onClick={() => setAiCount(n)}
                     className={`w-10 h-10 rounded-lg font-bold text-sm border transition-colors
                       ${aiCount === n ? 'border-blue-400 bg-blue-700 text-white' : 'border-gray-600 bg-gray-700 text-gray-300'}`}
                   >
-                    {n}
+                    {n === 0 ? '—' : n}
                   </button>
                 ))}
               </div>
