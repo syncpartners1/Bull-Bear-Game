@@ -20,7 +20,7 @@ export function createLobby(gameId, hostPlayer) {
 export function joinLobby(gameId, player) {
   const lobby = lobbies.get(gameId);
   if (!lobby) return { error: 'Game not found' };
-  if (lobby.players.length >= 5) return { error: 'Game is full (max 5 players)' };
+  if (lobby.players.length >= 4) return { error: 'Game is full (max 4 players)' };
   if (lobby.players.some((p) => p.telegramId === player.telegramId)) {
     return { error: 'Already in this game' };
   }

@@ -102,7 +102,7 @@ function LobbyPage() {
 
   const {
     createGame, joinGame, startGame,
-    lobby, myPlayer, gameId,
+    lobby, myPlayer, gameId, phase,
     connected, lastError, clearError,
   } = useGame();
 
@@ -110,10 +110,12 @@ function LobbyPage() {
   const [joinCode,  setJoinCode]  = useState(startGameId);
   const [mode,      setMode]      = useState(startInAiMode ? 'ai' : 'players');
   const [aiCount,   setAiCount]   = useState(1);
+  const [autoStart, setAutoStart] = useState(false);
 
+  // Navigate to the game board only once the game has actually started
   useEffect(() => {
-    if (gameId && lobby === null) navigate(`/game/${gameId}`);
-  }, [gameId, lobby, navigate]);
+    if (phase === 'playing' && gameId) navigate(`/game/${gameId}`);
+  }, [phase, gameId, navigate]);
 
   useEffect(() => {
     if (startGameId && connected && !gameId) {
@@ -121,13 +123,20 @@ function LobbyPage() {
     }
   }, [connected]); // eslint-disable-line
 
+  // Auto-start once lobby is ready in AI mode (user is always host here)
+  useEffect(() => {
+    if (autoStart && lobby && isHost && phase !== 'playing') {
+      startGame(aiCount);
+      setAutoStart(false);
+    }
+  }, [autoStart, lobby, isHost, phase, aiCount, startGame]);
+
   function handleCreate() { createGame(telegramId, name); }
 
   function handleJoin() {
     const code = joinCode.trim();
     if (!code) return;
     joinGame(code, telegramId, name);
-    navigate(`/game/${code}`);
   }
 
   function handleStart() {
@@ -137,7 +146,7 @@ function LobbyPage() {
   const isHost      = lobby?.hostId === myPlayer?.id;
   const humanCount  = lobby?.players?.length ?? 0;
   const totalWithAI = humanCount + aiCount;
-  const canStart    = totalWithAI >= 2 && totalWithAI <= 5;
+  const canStart    = totalWithAI >= 2 && totalWithAI <= 4;
 
   return (
     <div className="flex flex-col items-center justify-center h-full p-6 gap-5 overflow-y-auto">
@@ -180,7 +189,7 @@ function LobbyPage() {
               <div className="rounded-xl border border-gray-700 bg-gray-800 p-3">
                 <p className="text-xs text-gray-400 mb-2">Number of AI opponents</p>
                 <div className="flex gap-2 justify-center">
-                  {[1, 2, 3, 4].map((n) => (
+                  {[1, 2, 3].map((n) => (
                     <button
                       key={n}
                       onClick={() => setAiCount(n)}
@@ -195,7 +204,7 @@ function LobbyPage() {
                 </div>
               </div>
               <button
-                onClick={() => { handleCreate(); }}
+                onClick={() => { handleCreate(); setAutoStart(true); }}
                 disabled={!connected}
                 className="rounded-xl py-3 bg-blue-600 text-white font-bold text-sm hover:bg-blue-500 disabled:opacity-50 transition-colors"
               >
@@ -250,7 +259,7 @@ function LobbyPage() {
 
           <div className="rounded-xl border border-gray-700 bg-gray-800 p-3">
             <p className="text-xs text-gray-400 mb-2">
-              Players ({humanCount}/5){mode === 'ai' ? ` + ${aiCount} AI` : ''}
+              Players ({humanCount}/4){mode === 'ai' ? ` + ${aiCount} AI` : ''}
             </p>
             <div className="flex flex-col gap-1">
               {lobby.players?.map((p) => (
@@ -276,7 +285,7 @@ function LobbyPage() {
             <div className="rounded-xl border border-gray-700 bg-gray-800 p-3">
               <p className="text-xs text-gray-400 mb-2">🤖 AI bots (optional)</p>
               <div className="flex gap-2 flex-wrap">
-                {[0, 1, 2, 3, 4].filter((n) => humanCount + n <= 5).map((n) => (
+                {[0, 1, 2, 3].filter((n) => humanCount + n <= 4).map((n) => (
                   <button
                     key={n}
                     onClick={() => setAiCount(n)}
@@ -296,7 +305,7 @@ function LobbyPage() {
               disabled={!canStart}
               className="rounded-xl py-3 bg-green-600 text-white font-bold text-sm hover:bg-green-500 disabled:opacity-50 transition-colors"
             >
-              {canStart ? `Start Game (${totalWithAI} players)` : 'Need at least 2 players total'}
+              {canStart ? `Start Game (${totalWithAI} players)` : totalWithAI > 4 ? 'Maximum 4 players' : 'Need at least 2 players total'}
             </button>
           ) : (
             <p className="text-center text-sm text-gray-400">Waiting for host to start…</p>
