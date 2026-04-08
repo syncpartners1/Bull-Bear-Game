@@ -102,7 +102,7 @@ export function GameProvider({ children }) {
   // ── Action helpers ─────────────────────────────────────────────────────────
 
   const createGame = useCallback((telegramId, name) => {
-    socket.emit('join_game', {
+      socket.emit('join_game', {
       telegramId,
       name,
       telegramInitData: window.Telegram?.WebApp?.initData || '',
@@ -111,10 +111,10 @@ export function GameProvider({ children }) {
 
   const joinGame = useCallback((gameId, telegramId, name) => {
     socket.emit('join_game', {
-      gameId,
-      telegramId,
-      name,
-      telegramInitData: window.Telegram?.WebApp?.initData || '',
+        gameId,
+        telegramId,
+        name,
+        telegramInitData: window.Telegram?.WebApp?.initData || '',
     });
   }, [socket]);
 

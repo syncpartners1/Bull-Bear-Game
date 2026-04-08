@@ -11,7 +11,7 @@ export default function Board() {
   const { gameState, myPlayer, currentPlayer, isMyTurn, opponents } = useGame();
 
   if (!gameState) {
-    return <LoadingScreen />;
+     return <LoadingScreen />;
   }
 
   const { market, players, phase, deck } = gameState;
@@ -205,6 +205,7 @@ function LoadingScreen() {
     </div>
   );
 }
+ 
  
 // ─── In-game status bar ───────────────────────────────────────────────────────
  
