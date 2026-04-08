@@ -63,10 +63,47 @@ function AppRoutes() {
   const { finalScores } = useGame();
   if (finalScores) return <ScoreBoard />;
   return (
-    <Routes>
-      <Route path="/"            element={<LobbyPage />} />
-      <Route path="/game/:gameId" element={<GamePage />} />
-    </Routes>
+    <>
+      <ServerStatusBanner />
+      <Routes>
+        <Route path="/"            element={<LobbyPage />} />
+        <Route path="/game/:gameId" element={<GamePage />} />
+      </Routes>
+    </>
+  );
+}
+
+// ─── Server status / Railway wake-up banner ───────────────────────────────────
+
+function ServerStatusBanner() {
+  const { connected } = useGame();
+  const [elapsed, setElapsed] = useState(0);
+
+  useEffect(() => {
+    if (connected) { setElapsed(0); return; }
+    const id = setInterval(() => setElapsed((e) => e + 1), 1000);
+    return () => clearInterval(id);
+  }, [connected]);
+
+  if (connected) return null;          // hide once connected
+  if (elapsed < 5) return null;        // brief grace period — normal connect delay
+
+  let msg, colour;
+  if (elapsed < 20) {
+    msg    = 'Connecting to server…';
+    colour = 'bg-yellow-900/60 border-yellow-600 text-yellow-300';
+  } else if (elapsed < 50) {
+    msg    = 'Railway server may be waking up — this can take up to 60 s on the hobby tier.';
+    colour = 'bg-orange-900/60 border-orange-600 text-orange-300';
+  } else {
+    msg    = 'Server is taking unusually long. It may be paused on Railway — check your Railway dashboard.';
+    colour = 'bg-red-900/60 border-red-600 text-red-300';
+  }
+
+  return (
+    <div className={`w-full px-3 py-2 border-b text-xs text-center ${colour}`}>
+      ⚠ {msg}
+    </div>
   );
 }
 
