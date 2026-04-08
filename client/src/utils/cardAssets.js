@@ -17,26 +17,32 @@ for (const [path, mod] of Object.entries(_modules)) {
 }
  
 // (sector:type) → exact filename as it exists in the repo.
-// NOTE: several files have typos ("Sahres" not "Shares") or spaces in the
-// name — these match the actual files committed to the repository.
+// NOTE: filenames have mixed casing and some capitalization inconsistencies.
 const FILE_MAP = {
+  'tech:share_unit':       'tech_shares.png',
+  'tech:regulated_asset':  'Tech_Regulated.png',
+  'tech:insider_trading':  'Tech_insider.png',
+  'tech:strategic_merger': 'Tech_Merger.png',
+  'tech:hostile_takeover': 'tech_hostile.png',
+
   'finance:share_unit':       'bank_shares.png',
-  'finance:regulated_asset':  'bank_regulated.png',
+  'finance:regulated_asset':  'bank_Regulated.png',
   'finance:insider_trading':  'bank_insider.png',
-  'finance:strategic_merger': 'bank_merger.png',
-  'finance:hostile_takeover': 'bank_hostile.png',
- 
+  'finance:strategic_merger': 'bank_Merger.png',
+  'finance:hostile_takeover': 'Bank_Hostile.png',
+
   'energy:share_unit':       'energy_shares.png',
-  'energy:regulated_asset':  'energy_regulated.png',
+  'energy:regulated_asset':  'energy_Regulated.png',
   'energy:insider_trading':  'energy_insider.png',
-  'energy:strategic_merger': 'energy_merger.png',
-  'energy:hostile_takeover': 'energy_hostile.png',
- 
+  'energy:strategic_merger': 'energy_Merger.png',
+  'energy:hostile_takeover': 'energy_Hostile.png',
+
   'pharma:share_unit':       'pharma_shares.png',
-  'pharma:regulated_asset':  'pharma_regulated.png',
+  'pharma:regulated_asset':  'pharma_Regulated.png',
   'pharma:insider_trading':  'pharma_insider.png',
-  'pharma:strategic_merger': 'pharma_merger.png',
+  'pharma:strategic_merger': 'pharma_Merger.png',
   'pharma:hostile_takeover': 'pharma_hostile.png',
+};
 
 /**
  * * Returns the resolved image URL for a card face, or null if not found.
@@ -69,6 +75,6 @@ export const CARD_TYPE_META = {
 
 /** Mission card back images resolved via Vite. */
 export const MISSION_BACK_PATHS = {
-  market:   CARD_URLS['market_mission.png']   ?? null,
-  strategy: CARD_URLS['strategy_mission.png'] ?? null,
+  market:   CARD_URLS['market_mission.png']     ?? null,
+  strategy: CARD_URLS['strategy_mission_back.png'] ?? null,
 };
