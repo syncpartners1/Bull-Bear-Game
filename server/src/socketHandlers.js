@@ -269,8 +269,8 @@ export function registerHandlers(io, socket) {
     if (totalCount < 2) {
       emitError(socket, 'Need at least 2 players total (human + AI)'); return;
     }
-    if (totalCount > 5) {
-      emitError(socket, 'Maximum 5 players total'); return;
+    if (totalCount > 4) {
+      emitError(socket, 'Maximum 4 players total'); return;
     }
 
     // Build AI player objects
