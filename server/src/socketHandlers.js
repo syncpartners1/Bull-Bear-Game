@@ -221,6 +221,28 @@ export function registerHandlers(io, socket) {
       return;
     }
 
+    // Reconnect to an active game (e.g. after page refresh)
+    const activeGame = getGame(gameId);
+    if (activeGame) {
+      const existing = activeGame.players.find(
+        (p) => !p.isAI && p.telegramId === resolvedTelegramId
+      );
+      if (!existing) {
+        emitError(socket, 'Game already in progress — you are not a registered player');
+        return;
+      }
+      const updatedPlayers = activeGame.players.map((p) =>
+        p.id === existing.id ? { ...p, socketId: socket.id, connected: true } : p
+      );
+      const reconnState = { ...activeGame, players: updatedPlayers };
+      saveGame(reconnState);
+      socket.join(gameId);
+      registerSocket(socket.id, gameId);
+      socket.emit('joined_game', { gameId, player: { ...existing, socketId: socket.id } });
+      socket.emit('game_state', serializeForPlayer(reconnState, existing.id));
+      return;
+    }
+
     // Join existing lobby
     const { lobby, error } = joinLobby(gameId, player);
     if (error) { emitError(socket, error); return; }
