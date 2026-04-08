@@ -241,10 +241,10 @@ export function registerHandlers(io, socket) {
     if (!requesting || requesting.id !== lobby.hostId) {
       emitError(socket, 'Only the host can start the game'); return;
     }
-    if (lobby.players.length < 2) {
+
     const numAI      = Math.max(0, Math.min(4, Number(aiCount) || 0));
     const totalCount = lobby.players.length + numAI;
- 
+
     if (totalCount < 2) {
       emitError(socket, 'Need at least 2 players total (human + AI)'); return;
     }
@@ -308,7 +308,7 @@ export function registerHandlers(io, socket) {
       state, player.id, cardId, step, { sector, zone, targetPlayerId }
     );
     if (error) { emitError(socket, error); return; }
-    
+
     // Still mid-turn — just save and broadcast
     if (newState.turnStep !== 'end_turn') {
       saveGame(newState);
@@ -318,64 +318,20 @@ export function registerHandlers(io, socket) {
     }
 
     // If all 3 allocation steps complete, advance the turn
-      const { finalState, nextTurnCards, gameOver } = advanceTurn(io, newState);
-    let finalState = newState;
-    let nextTurnCards = [];
-  
-
-    if (newState.turnStep === 'end_turn') {
-      finalState = endTurn(newState);
-
-      if (finalState.phase === 'reveal') {
-        // Deck exhausted → reveal insider trading
-        finalState = revealInsiderTrading(finalState);
-        broadcastGameState(io, finalState);
-        saveGame(finalState);
-    socket.emit('card_allocated', { step, cardId, activateAbility: activateAbility || false });
-    if (gameOver) return;
-
-        // Give clients a moment then trigger scoring
-        setTimeout(() => {
-          const scored = calculateScores(finalState);
-          saveGame(scored);
-          broadcastGameState(io, scored);
-          broadcastToRoom(io, gameId, 'game_over', {
-            scores: scored.scores,
-            winnerId: scored.winnerId,
-          });
-        }, 3000);
-        return;
-      }
-
-      // Start next player's turn
-      const drawResult = startTurn(finalState);
-      finalState = drawResult.state;
-      nextTurnCards = drawResult.drawnCards;
-
-      if (finalState.phase === 'reveal') {
-        // Deck ran out during startTurn
-        finalState = revealInsiderTrading(finalState);
-        saveGame(finalState);
-        broadcastGameState(io, finalState);
-        setTimeout(() => {
-          const scored = calculateScores(finalState);
-          saveGame(scored);
-          broadcastGameState(io, scored);
-          broadcastToRoom(io, gameId, 'game_over', {
-            scores: scored.scores,
-            winnerId: scored.winnerId,
-          });
-        }, 3000);
-        return;
-      }
+    const { finalState, nextTurnCards, gameOver } = advanceTurn(io, newState);
+    if (gameOver) {
+      saveGame(finalState);
+      broadcastGameState(io, finalState);
+      socket.emit('card_allocated', { step, cardId, activateAbility: activateAbility || false });
+      return;
     }
 
+    // Start next player's turn
     saveGame(finalState);
     broadcastGameState(io, finalState);
     socket.emit('card_allocated', { step, cardId, activateAbility: activateAbility || false });
 
-    // Notify current player to take their turn if we advanced
-     const nextPlayer = finalState.players[finalState.currentPlayerIndex];
+    const nextPlayer = finalState.players[finalState.currentPlayerIndex];
     if (nextPlayer.isAI) {
       processAITurn(io, finalState, nextPlayer, nextTurnCards);
     } else {
@@ -399,24 +355,6 @@ export function registerHandlers(io, socket) {
 
     const { state: newState, error, removedCard } = activateHostileTakeover(state, player.id, target);
     if (error) { emitError(socket, error); return; }
-
-  // Build AI player objects — each gets a distinct personality profile
-    const AI_PROFILES = ['hunter', 'jess', 'mandy', 'ruth'];
-    const aiPlayers = Array.from({ length: Math.max(0, Number(aiCount)) }, (_, i) => {
-      const profile = AI_PROFILES[i % AI_PROFILES.length];
-      return {
-        id:         uuidv4(),
-        telegramId: `ai_${i + 1}`,
-        name:       profile.charAt(0).toUpperCase() + profile.slice(1), // "Hunter", "Jess", …
-        profile,
-        socketId:   null,
-        portfolio:  [],
-        score:      0,
-        missions:   [],
-        connected:  true,
-        isAI:       true,
-      };
-    });
 
     saveGame(newState);
     broadcastGameState(io, newState);
