@@ -20,30 +20,30 @@ for (const [path, mod] of Object.entries(_modules)) {
 // NOTE: several files have typos ("Sahres" not "Shares") or spaces in the
 // name — these match the actual files committed to the repository.
 const FILE_MAP = {
-  'finance:share_unit':       'Bank_Sahres.png',
-  'finance:regulated_asset':  'bank_Regulated.png',
+  'finance:share_unit':       'bank_shares.png',
+  'finance:regulated_asset':  'bank_regulated.png',
   'finance:insider_trading':  'bank_insider.png',
-  'finance:strategic_merger': 'bank_Merger.png',
-  'finance:hostile_takeover': 'Bank_Hostile.png',
+  'finance:strategic_merger': 'bank_merger.png',
+  'finance:hostile_takeover': 'bank_hostile.png',
  
-  'energy:share_unit':       'energy_Sahres.png',
-  'energy:regulated_asset':  'energy_Regulated.png',
+  'energy:share_unit':       'energy_shares.png',
+  'energy:regulated_asset':  'energy_regulated.png',
   'energy:insider_trading':  'energy_insider.png',
-  'energy:strategic_merger': 'energy_Merger.png',
-  'energy:hostile_takeover': 'energy_Hostile.png',
+  'energy:strategic_merger': 'energy_merger.png',
+  'energy:hostile_takeover': 'energy_hostile.png',
  
-  'pharma:share_unit':       'pharma_Sahres.png',
-  'pharma:regulated_asset':  'pharma_Regulated.png',
+  'pharma:share_unit':       'pharma_shares.png',
+  'pharma:regulated_asset':  'pharma_regulated.png',
   'pharma:insider_trading':  'pharma_insider.png',
-  'pharma:strategic_merger': 'pharma_Merger.png',
-  'pharma:hostile_takeover': 'Pahrma Hostile.png',
+  'pharma:strategic_merger': 'pharma_merger.png',
+  'pharma:hostile_takeover': 'pharma_hostile.png',
 
 /**
  * * Returns the resolved image URL for a card face, or null if not found.
  * Pivot cards use a single sector-independent image.
  */
 export function getCardImagePath(sector, type) {
-  if (type === 'pivot') return CARD_URLS['Pivot_card.png'] ?? null;
+  if (type === 'pivot') return CARD_URLS['pivot_card.png'] ?? null;
   const filename = FILE_MAP[`${sector}:${type}`];
   if (!filename) return null;
   return CARD_URLS[filename] ?? null;
@@ -52,9 +52,9 @@ export function getCardImagePath(sector, type) {
 /** Sector display names and brand colours. */
 export const SECTOR_META = {
   tech:    { label: 'Technology', color: '#3B82F6', bgClass: 'bg-tech',    textClass: 'text-tech'    },
-  finance: { label: 'Finance',    color: '#22C55E', bgClass: 'bg-finance',  textClass: 'text-finance'  },
-  energy:  { label: 'Energy',     color: '#F97316', bgClass: 'bg-energy',   textClass: 'text-energy'   },
-  pharma:  { label: 'Pharma',     color: '#EC4899', bgClass: 'bg-pharma',   textClass: 'text-pharma'   },
+  finance: { label: 'Finance',    color: '#dbf113', bgClass: 'bg-finance',  textClass: 'text-finance'  },
+  energy:  { label: 'Energy',     color: '#12a031', bgClass: 'bg-energy',   textClass: 'text-energy'   },
+  pharma:  { label: 'Pharma',     color: '#a71a60', bgClass: 'bg-pharma',   textClass: 'text-pharma'   },
 };
 
 export const CARD_TYPE_META = {
@@ -70,5 +70,5 @@ export const CARD_TYPE_META = {
 /** Mission card back images resolved via Vite. */
 export const MISSION_BACK_PATHS = {
   market:   CARD_URLS['market_mission.png']   ?? null,
-  strategy: CARD_URLS['Strategy_Mission.png'] ?? null,
+  strategy: CARD_URLS['strategy_mission.png'] ?? null,
 };
