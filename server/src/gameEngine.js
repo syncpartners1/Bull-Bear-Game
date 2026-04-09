@@ -372,7 +372,7 @@ export function revealInsiderTrading(state) {
 
   const market = { ...state.market };
   for (const zone of ['bull', 'bear']) {
-    for (const card of state.unrevealedMarket.zone || state.unrevealedMarket[zone] || []) {
+    for (const card of state.unrevealedMarket[zone] || []) {
       const sector = card.sector;
       market[sector] = {
         ...market[sector],
