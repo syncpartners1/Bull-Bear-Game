@@ -9,6 +9,7 @@ const SECTORS = ['tech', 'finance', 'energy', 'pharma'];
 
 export default function Board() {
   const { gameState, myPlayer, currentPlayer, isMyTurn, opponents } = useGame();
+  const [activeTab, setActiveTab] = useState('market');
 
   if (!gameState) {
     return <LoadingScreen />;
@@ -26,40 +27,62 @@ export default function Board() {
         <MissionBanners missions={myPlayer.missions} />
       )}
 
-      {/* Opponent portfolios (compact, top) */}
-      <div className="flex gap-2 overflow-x-auto shrink-0">
-        {opponents.map((p) => (
-          <div key={p.id} className="min-w-[140px]">
-            <Portfolio player={p} compact />
-          </div>
-        ))}
+      {/* Tabs */}
+      <div className="flex rounded-xl overflow-hidden border border-gray-700 shrink-0 mx-1">
+        <button
+          onClick={() => setActiveTab('market')}
+          className={`flex-1 py-1.5 text-xs font-semibold transition-colors ${activeTab === 'market' ? 'bg-yellow-500 text-black' : 'bg-gray-800 text-gray-400'}`}
+        >
+          📈 Market Board
+        </button>
+        <button
+          onClick={() => setActiveTab('portfolios')}
+          className={`flex-1 py-1.5 text-xs font-semibold transition-colors ${activeTab === 'portfolios' ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-400'}`}
+        >
+           💼 Portfolios
+        </button>
       </div>
 
-      {/* Market tracks — 2×2 grid */}
-      <div className="grid grid-cols-2 gap-1.5 flex-1 overflow-auto min-h-0">
-        {SECTORS.map((sector) => (
-          <MarketTrack
-            key={sector}
-            sector={sector}
-            marketData={market?.[sector]}
-          />
-        ))}
-        {/* Global Market Track */}
-        {(gameState?.unrevealedMarket?.bull?.length > 0 || gameState?.unrevealedMarket?.bear?.length > 0) && (
-          <div className="col-span-2">
-            <GlobalMarketTrack marketData={gameState.unrevealedMarket} />
+      {activeTab === 'market' ? (
+        <div className="grid grid-cols-2 gap-1.5 flex-1 overflow-auto min-h-0">
+          {SECTORS.map((sector) => (
+            <MarketTrack
+              key={sector}
+              sector={sector}
+              marketData={market?.[sector]}
+            />
+          ))}
+          {/* Global Market Track */}
+          {(gameState?.unrevealedMarket?.bull?.length > 0 || gameState?.unrevealedMarket?.bear?.length > 0) && (
+            <div className="col-span-2">
+              <GlobalMarketTrack marketData={gameState.unrevealedMarket} />
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="flex flex-col gap-2 flex-1 overflow-auto min-h-0">
+          <div className="flex flex-col gap-2">
+            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">Opponents</span>
+            <div className="flex gap-2 overflow-x-auto shrink-0 pb-1">
+              {opponents.map((p) => (
+                <div key={p.id} className="min-w-[140px]">
+                  <Portfolio player={p} compact />
+                </div>
+              ))}
+            </div>
           </div>
-        )}
-      </div>
-
-      {/* My portfolio (compact) */}
-      {myPlayer && (
-        <div className="shrink-0">
-          <Portfolio
-            player={players?.find((p) => p.id === myPlayer.id)}
-            isMe
-            compact
-          />
+          {myPlayer && (
+            <div className="flex flex-col gap-2 mt-2">
+              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">My Portfolio</span>
+              <div className="shrink-0">
+                <Portfolio
+                  player={players?.find((p) => p.id === myPlayer.id)}
+                  isMe
+                  compact
+                />
+              </div>
+            </div>
+          )}
         </div>
       )}
 

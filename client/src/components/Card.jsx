@@ -1,6 +1,6 @@
 // client/src/components/Card.jsx
 import { useState, useEffect } from 'react';
-import { getCardImagePath, SECTOR_META, CARD_TYPE_META } from '../utils/cardAssets.js';
+import { getCardImagePath, SECTOR_META, CARD_TYPE_META, CARDS_BACK_URL } from '../utils/cardAssets.js';
 
 const SECTOR_BORDER = {
   tech:    'border-blue-500',
@@ -17,13 +17,12 @@ const SECTOR_BG = {
 };
 
 export default function Card({ card, faceDown = false, selected = false, onClick, small = false, large = false }) {
-  const [flipped, setFlipped] = useState(false);
+  const [flipped, setFlipped] = useState(faceDown);
   const prevFaceDown = usePrevious(faceDown);
 
-  // Animate flip when card goes from face-down to face-up
   useEffect(() => {
-    if (prevFaceDown && !faceDown) {
-      setFlipped(true);
+    if (prevFaceDown !== faceDown) {
+      setFlipped(faceDown);
     }
   }, [faceDown, prevFaceDown]);
 
@@ -65,10 +64,14 @@ export default function Card({ card, faceDown = false, selected = false, onClick
 
         {/* Back face (shown when face-down) */}
         <div
-          className={`card-back absolute inset-0 rounded-xl border-2 border-gray-600 bg-gray-800 flex items-center justify-center shadow-lg`}
+          className={`card-back absolute inset-0 rounded-xl border-2 border-gray-600 bg-gray-800 flex items-center justify-center shadow-lg overflow-hidden`}
           style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}
         >
-          <span className="text-2xl">🂠</span>
+          {CARDS_BACK_URL ? (
+            <img src={CARDS_BACK_URL} alt="Card Back" className="w-full h-full object-cover rounded-xl" />
+          ) : (
+            <span className="text-2xl text-gray-400">🂠</span>
+          )}
         </div>
       </div>
     </div>

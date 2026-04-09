@@ -63,6 +63,8 @@ export const SECTOR_META = {
   pharma:  { label: 'Pharma',     color: '#a71a60', bgClass: 'bg-pharma',   textClass: 'text-pharma'   },
 };
 
+export const CARDS_BACK_URL = CARD_URLS['cards_backside.png'] ?? null;
+
 export const CARD_TYPE_META = {
   share_unit:       { label: 'Share Unit',        icon: '📈', value: 1 },
   regulated_asset:  { label: 'Regulated Asset',   icon: '🛡️', value: 1 },

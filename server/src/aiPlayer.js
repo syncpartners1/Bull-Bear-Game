@@ -109,7 +109,8 @@ function bestBullPlacement(cards, market, portfolioCards) {
   let bestDelta = -Infinity;
 
   for (const card of cards) {
-    for (const sector of SECTORS) {
+    const validSectors = (card.type === 'pivot' || !card.sector) ? SECTORS : [card.sector];
+    for (const sector of validSectors) {
       const owned = portfolioCards.filter((c) => c.sector === sector).length;
       const bullCount = market[sector].bull.reduce((s, c) => s + c.value, 0);
       const bearCount = market[sector].bear.reduce((s, c) => s + c.value, 0);
@@ -122,7 +123,11 @@ function bestBullPlacement(cards, market, portfolioCards) {
     }
   }
 
-  if (!best) return { card: cards[0], sector: SECTORS[0], zone: 'bull' };
+  if (!best) {
+    const firstCard = cards[0];
+    const fallbackSector = (firstCard.type === 'pivot' || !firstCard.sector) ? SECTORS[0] : firstCard.sector;
+    return { card: firstCard, sector: fallbackSector, zone: 'bull' };
+  }
   return best;
 }
 
@@ -163,7 +168,8 @@ function hunterMarketPlacement(cards, market, state, aiPlayer) {
   let bestScore = -Infinity;
 
   for (const card of cards) {
-    for (const sector of SECTORS) {
+    const validSectors = (card.type === 'pivot' || !card.sector) ? SECTORS : [card.sector];
+    for (const sector of validSectors) {
       const opponentCount = opponentPortfolios.filter((c) => c.sector === sector).length;
       const bull = market[sector].bull.reduce((s, c) => s + c.value, 0);
       const bear = market[sector].bear.reduce((s, c) => s + c.value, 0);
@@ -177,7 +183,11 @@ function hunterMarketPlacement(cards, market, state, aiPlayer) {
     }
   }
 
-  if (!best) return { card: cards[0], sector: SECTORS[0], zone: 'bear' };
+  if (!best) {
+    const firstCard = cards[0];
+    const fallbackSector = (firstCard.type === 'pivot' || !firstCard.sector) ? SECTORS[0] : firstCard.sector;
+    return { card: firstCard, sector: fallbackSector, zone: 'bear' };
+  }
   return best;
 }
 
@@ -244,9 +254,10 @@ function mandyDecision(state, aiPlayer, turnCards) {
   const portfolioCard = sectorMatch ?? highestExpected(turnCards, market);
   const remaining1 = turnCards.filter((c) => c.id !== portfolioCard.id);
 
-  const currentIdx = market[targetSector].index;
-  const mandyZone = currentIdx >= 0 ? 'bear' : 'bull';
   const marketCard = [...remaining1].sort((a, b) => b.value - a.value)[0];
+  const mSector = (marketCard.type === 'pivot' || !marketCard.sector) ? targetSector : marketCard.sector;
+  const currentIdx = market[mSector].index;
+  const mandyZone = currentIdx >= 0 ? 'bear' : 'bull';
   const remaining2 = remaining1.filter((c) => c.id !== marketCard.id);
 
   const opponentCard = remaining2[0];
@@ -260,7 +271,7 @@ function mandyDecision(state, aiPlayer, turnCards) {
     if (hostileTarget) useHostileTakeover = true;
   }
 
-  return { portfolioCard, marketCard, marketSector: targetSector, marketZone: mandyZone,
+  return { portfolioCard, marketCard, marketSector: mSector, marketZone: mandyZone,
            opponentCard, targetPlayerId, useHostileTakeover, hostileTarget };
 }
 

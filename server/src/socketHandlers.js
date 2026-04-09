@@ -50,6 +50,73 @@ function generateGameId() {
   return id;
 }
 
+const turnTimeouts = new Map(); // gameId -> timeoutId
+
+function clearTurnTimeout(gameId) {
+  if (turnTimeouts.has(gameId)) {
+    clearTimeout(turnTimeouts.get(gameId));
+    turnTimeouts.delete(gameId);
+  }
+}
+
+function handleTurnTimeout(io, gameId) {
+  const state = getGame(gameId);
+  if (!state) return;
+
+  const currentPlayerIndex = state.currentPlayerIndex;
+  const currentPlayer = state.players[currentPlayerIndex];
+
+  let activeState = state;
+
+  if (!currentPlayer.isAI) {
+    const updatedPlayers = state.players.map(p => 
+      p.id === currentPlayer.id ? { ...p, isAI: true, profile: 'hunter' } : p
+    );
+    activeState = { ...state, players: updatedPlayers };
+    saveGame(activeState);
+    broadcastGameState(io, activeState);
+    broadcastToRoom(io, gameId, 'notification', { message: `${currentPlayer.name} ran out of time and is now on Auto-Play!` });
+
+    const turnCards = activeState.turnCards.map(id => activeState._turnCardMap[id]);
+    processAITurn(io, activeState, activeState.players[currentPlayerIndex], turnCards);
+    return;
+  }
+  
+  // A bot timed out or fallback skip. Skip turn.
+  const { finalState, nextTurnCards, gameOver } = advanceTurn(io, activeState);
+  saveGame(finalState);
+  broadcastGameState(io, finalState);
+  broadcastToRoom(io, gameId, 'notification', { message: 'A bot ran out of time! Turn skipped.' });
+  if (gameOver) {
+    clearTurnTimeout(gameId);
+    return;
+  }
+
+  const nextPlayer = finalState.players[finalState.currentPlayerIndex];
+  scheduleTurnTimeout(io, gameId, finalState.turnEndsAt);
+  
+  if (nextPlayer.isAI) {
+    processAITurn(io, finalState, nextPlayer, nextTurnCards);
+  } else {
+    io.to(nextPlayer.socketId).emit('turn_started', {
+      playerId: nextPlayer.id,
+      cards: nextTurnCards,
+      turnStep: finalState.turnStep,
+    });
+  }
+}
+
+function scheduleTurnTimeout(io, gameId, turnEndsAt) {
+  clearTurnTimeout(gameId);
+  if (!turnEndsAt) return;
+  const timeoutMs = new Date(turnEndsAt).getTime() - Date.now();
+  if (timeoutMs <= 0) {
+    handleTurnTimeout(io, gameId);
+  } else {
+    turnTimeouts.set(gameId, setTimeout(() => handleTurnTimeout(io, gameId), timeoutMs));
+  }
+}
+
 /**
  * Called after the 3rd card allocation (turnStep === 'end_turn').
  * Runs endTurn, startTurn, and handles the reveal/scoring phase.
@@ -63,6 +130,7 @@ function advanceTurn(io, state) {
     saveGame(finalState);
     broadcastGameState(io, finalState);
     setTimeout(() => {
+      clearTurnTimeout(finalState.gameId);
       const scored = calculateScores(finalState);
       saveGame(scored);
       broadcastGameState(io, scored);
@@ -83,6 +151,7 @@ function advanceTurn(io, state) {
     saveGame(finalState);
     broadcastGameState(io, finalState);
     setTimeout(() => {
+      clearTurnTimeout(finalState.gameId);
       const scored = calculateScores(finalState);
       saveGame(scored);
       broadcastGameState(io, scored);
@@ -224,14 +293,14 @@ export function registerHandlers(io, socket) {
     const activeGame = getGame(gameId);
     if (activeGame) {
       const existing = activeGame.players.find(
-        (p) => !p.isAI && p.telegramId === resolvedTelegramId
+        (p) => p.telegramId === resolvedTelegramId
       );
       if (!existing) {
         emitError(socket, 'Game already in progress — you are not a registered player');
         return;
       }
       const updatedPlayers = activeGame.players.map((p) =>
-        p.id === existing.id ? { ...p, socketId: socket.id, connected: true } : p
+        p.id === existing.id ? { ...p, socketId: socket.id, connected: true, isAI: false } : p
       );
       const reconnState = { ...activeGame, players: updatedPlayers };
       saveGame(reconnState);
@@ -302,6 +371,8 @@ export function registerHandlers(io, socket) {
     broadcastToRoom(io, gameId, 'game_started', { gameId });
     broadcastGameState(io, state);
 
+    scheduleTurnTimeout(io, gameId, state.turnEndsAt);
+
     const firstPlayer = state.players[state.currentPlayerIndex];
     if (firstPlayer.isAI) {
       // AI goes first — kick off its turn automatically
@@ -343,7 +414,12 @@ export function registerHandlers(io, socket) {
     saveGame(finalState);
     broadcastGameState(io, finalState);
     socket.emit('card_allocated', { step, cardId, activateAbility: activateAbility || false });
-    if (gameOver) return;
+    if (gameOver) {
+      clearTurnTimeout(gameId);
+      return;
+    }
+
+    scheduleTurnTimeout(io, gameId, finalState.turnEndsAt);
 
     const nextPlayer = finalState.players[finalState.currentPlayerIndex];
     if (nextPlayer.isAI) {
@@ -383,6 +459,16 @@ export function registerHandlers(io, socket) {
     socket.emit('hostile_takeover_skipped', { gameId });
   });
 
+  // ── nudge_ai ──────────────────────────────────────────────────────────────
+  socket.on('nudge_ai', ({ gameId }) => {
+    const state = getGame(gameId);
+    if (!state) return;
+    const currentPlayer = state.players[state.currentPlayerIndex];
+    if (currentPlayer && currentPlayer.isAI) {
+      processAITurn(io, state, currentPlayer, state.turnCards.map(id => state._turnCardMap[id]));
+    }
+  });
+
   // ── disconnect ────────────────────────────────────────────────────────────
   socket.on('disconnect', () => {
     const result = handleDisconnect(socket.id);
@@ -391,9 +477,26 @@ export function registerHandlers(io, socket) {
     if (result.type === 'lobby') {
       broadcastToRoom(io, result.gameId, 'lobby_updated', result.lobby);
     } else if (result.type === 'game') {
-      broadcastGameState(io, result.state);
+      const activeGame = result.state;
+      const pIndex = activeGame.players.findIndex((p) => p.socketId === socket.id);
+      
+      let finalState = activeGame;
+      
+      if (pIndex !== -1 && !activeGame.players[pIndex].isAI) {
+        activeGame.players[pIndex].isAI = true;
+        activeGame.players[pIndex].profile = 'hunter';
+        saveGame(activeGame);
+        finalState = activeGame;
+
+        if (activeGame.currentPlayerIndex === pIndex && activeGame.phase === 'playing') {
+          const turnCards = activeGame.turnCards.map(id => activeGame._turnCardMap[id]);
+          processAITurn(io, activeGame, activeGame.players[pIndex], turnCards);
+        }
+      }
+
+      broadcastGameState(io, finalState);
       broadcastToRoom(io, result.gameId, 'player_disconnected', {
-        playerId: result.state.players.find((p) => p.socketId === socket.id)?.id,
+        playerId: finalState.players[pIndex]?.id,
       });
     }
   });

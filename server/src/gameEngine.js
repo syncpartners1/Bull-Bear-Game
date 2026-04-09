@@ -142,6 +142,20 @@ export function startTurn(state) {
   const drawnCards = state.deck.slice(0, count);
   const newDeck = state.deck.slice(count);
 
+  while (drawnCards.length < 3) {
+    drawnCards.push({
+      id: uuidv4(),
+      type: 'pivot',
+      sector: null,
+      value: 1,
+      faceDown: false,
+    });
+  }
+
+  const currentPlayer = state.players[state.currentPlayerIndex];
+  const timeoutMs = currentPlayer.isAI ? 30000 : 120000;
+  const turnEndsAt = new Date(Date.now() + timeoutMs).toISOString();
+
   const newState = touch({
     ...state,
     deck: newDeck,
@@ -149,6 +163,7 @@ export function startTurn(state) {
     remainingActions: ['portfolio', 'market', 'opponent'],
     pendingHostileTakeover: null,
     _turnCardMap: Object.fromEntries(drawnCards.map((c) => [c.id, c])),
+    turnEndsAt,
   });
 
   return { state: newState, drawnCards };
@@ -202,6 +217,9 @@ export function allocateCard(state, playerId, cardId, step, extra = {}) {
     if (card.type === 'hostile_takeover') activateAbility = true;
   } else if (step === 'market') {
     const { sector, zone } = extra;
+    if (!SECTORS.includes(sector)) return { state, error: 'Invalid sector' };
+    if (card.sector && card.sector !== sector) return { state, error: 'Card must be placed in its matching sector' };
+    
     if (card.type === 'insider_trading') {
       if (!['bull', 'bear'].includes(zone)) return { state, error: 'Invalid zone (bull or bear)' };
       newState = {
@@ -212,7 +230,6 @@ export function allocateCard(state, playerId, cardId, step, extra = {}) {
         },
       };
     } else {
-      if (!SECTORS.includes(sector)) return { state, error: 'Invalid sector' };
       if (!['bull', 'bear'].includes(zone)) return { state, error: 'Invalid zone (bull or bear)' };
       newState = addToMarket(newState, sector, zone, card);
     }
@@ -411,7 +428,8 @@ export function serializeForPlayer(state, viewingPlayerId) {
       ...p,
       portfolio: p.portfolio.map((c) => {
         if (!isViewer && c.faceDown && c.type === 'insider_trading') {
-          return { id: c.id, sector: c.sector, value: 1, faceDown: true, type: 'hidden' };
+          const { sector, ...rest } = c;
+          return { ...rest, value: 1, faceDown: true, type: 'hidden' };
         }
         return c;
       }),
