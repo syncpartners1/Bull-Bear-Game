@@ -19,10 +19,12 @@ Players earn points based on portfolio alignment with final market sentiment. St
 
 - **Live Multiplayer** – Real-time gameplay via WebSocket (Socket.io)
 - **AI Opponents** – Four distinct personality profiles with unique strategies
+- **Auto-Play & Reconection** – Bot takeover for disconnected players with seamless reconnection
 - **Telegram Integration** – Play directly in Telegram Mini App with secure authentication
-- **Dynamic Market** – Bull/bear index shifts as cards are played
+- **Mobile-First UI** – Tabbed interface for switching between Market and Portfolios on small screens
+- **Dynamic Market** – Bull/bear index shifts as cards are played with masked insider logic
 - **Persistent Games** – Progress saved to database for reconnection
-- **Responsive UI** – Works on mobile and desktop with Tailwind CSS
+- **Robust Engine** – Procedural Pivot card padding to ensure a full deck at all times
 
 ---
 
@@ -183,8 +185,8 @@ Bull-Bear-Game/
 - **Regulated Asset** (value 1) – Protected from hostile takeovers
 - **Insider Trading** (value 1) – Grants ability to peek at opponent cards
 - **Strategic Merger** (value 2) – Higher scoring potential
-- **Hostile Takeover** (value 1) – Remove opponent's asset from play
-- **Pivot** – Wild card usable in any sector
+- **Hostile Takeover** (value 1) – Discard an opponent's asset (Both cards are binned upon activation)
+- **Pivot** – Wild card that must be converted to a specific sector stock before play
 
 ### Market System
 Each sector has **bull** and **bear** zones. The market index is:
@@ -193,6 +195,11 @@ Each sector has **bull** and **bear** zones. The market index is:
 - **0 (Neutral)** if equal
 
 Portfolio score = cards owned × final market sentiment.
+
+### Turn Timers
+- **3-Minute Limit**: Players have 180 seconds to complete their actions.
+- **Per-Action Reset**: The timer resets back to 3 minutes after every single card placement, ensuring ample strategic time.
+- **Auto-Play Transition**: If the timer expires or a player disconnects, an AI "Hybrid" personality takes over the turn.
 
 ### Scoring
 Final scores are calculated after all turns based on:
@@ -276,9 +283,9 @@ cd client && npm test
 ## 🐛 Known Issues & TODOs
 
 - Card filenames have inconsistent casing (mapped in `cardAssets.js`)
-- Mission card implementation pending
 - Spectator mode not yet implemented
 - Chat/emotes feature on roadmap
+- Advanced Matchmaking features pending
 
 ---
 

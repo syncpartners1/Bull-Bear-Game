@@ -137,7 +137,7 @@ export default function Hand() {
           {/* Card Side */}
           <div className="flex flex-col items-center shrink-0">
             <Card
-              card={selectedCard}
+              card={isPivot && pivotSector ? { ...selectedCard, sector: pivotSector } : selectedCard}
               faceDown={false}
               large
               selected={true}
@@ -150,15 +150,26 @@ export default function Hand() {
           <div className="flex flex-col flex-1 min-w-0 max-h-[200px] overflow-y-auto pr-1">
             {!selectedAction ? (
               <div className="flex flex-col gap-2 w-full justify-center h-full">
-                <p className="text-[10px] text-center text-gray-400 leading-tight">Where to play?</p>
-                {remainingActions.includes('portfolio') && (
-                  <button onClick={() => setSelectedAction('portfolio')} className="rounded-md py-2 px-1 bg-yellow-900/50 border border-yellow-700 text-yellow-300 font-bold text-[11px] uppercase tracking-wider hover:bg-yellow-800/50 shadow-sm truncate">My Portfolio</button>
-                )}
-                {remainingActions.includes('market') && (
-                  <button onClick={() => setSelectedAction('market')} className="rounded-md py-2 px-1 bg-blue-900/50 border border-blue-700 text-blue-300 font-bold text-[11px] uppercase tracking-wider hover:bg-blue-800/50 shadow-sm truncate">The Market</button>
-                )}
-                {remainingActions.includes('opponent') && (
-                  <button onClick={() => setSelectedAction('opponent')} className="rounded-md py-2 px-1 bg-red-900/50 border border-red-700 text-red-300 font-bold text-[11px] uppercase tracking-wider hover:bg-red-800/50 shadow-sm truncate">An Opponent</button>
+                {isPivot && !pivotSector ? (
+                  <PivotSectorSelector selectedSector={pivotSector} onSelect={setPivotSector} />
+                ) : (
+                  <>
+                    <p className="text-[10px] text-center text-gray-400 leading-tight">
+                      {isPivot ? `Converted to ${pivotSector.toUpperCase()}. Where to play?` : 'Where to play?'}
+                    </p>
+                    {remainingActions.includes('portfolio') && (
+                      <button onClick={() => setSelectedAction('portfolio')} className="rounded-md py-2 px-1 bg-yellow-900/50 border border-yellow-700 text-yellow-300 font-bold text-[11px] uppercase tracking-wider hover:bg-yellow-800/50 shadow-sm truncate">My Portfolio</button>
+                    )}
+                    {remainingActions.includes('market') && (
+                      <button onClick={() => setSelectedAction('market')} className="rounded-md py-2 px-1 bg-blue-900/50 border border-blue-700 text-blue-300 font-bold text-[11px] uppercase tracking-wider hover:bg-blue-800/50 shadow-sm truncate">The Market</button>
+                    )}
+                    {remainingActions.includes('opponent') && (
+                      <button onClick={() => setSelectedAction('opponent')} className="rounded-md py-2 px-1 bg-red-900/50 border border-red-700 text-red-300 font-bold text-[11px] uppercase tracking-wider hover:bg-red-800/50 shadow-sm truncate">An Opponent</button>
+                    )}
+                    {isPivot && (
+                      <button onClick={() => setPivotSector(null)} className="text-[10px] text-gray-400 underline mt-1">Reset Sector</button>
+                    )}
+                  </>
                 )}
               </div>
             ) : (
@@ -172,16 +183,12 @@ export default function Hand() {
                   selectedCard.type === 'insider_trading' ? (
                     <div className="origin-top flex flex-col gap-1 -mx-2 scale-90"><HiddenMarketTargetSelector selectedZone={selectedZone} onSelect={setSelectedZone} /></div>
                   ) : (
-                    <div className="origin-top flex flex-col gap-1 -mx-2 scale-90"><MarketTargetSelector selectedSector={selectedSector} selectedZone={selectedZone} cardSector={selectedCard?.type === 'pivot' ? null : selectedCard?.sector} onSelect={(sector, zone) => { setSelectedSector(sector); setSelectedZone(zone); }} /></div>
+                    <div className="origin-top flex flex-col gap-1 -mx-2 scale-90"><MarketTargetSelector selectedSector={selectedSector} selectedZone={selectedZone} cardSector={isPivot ? pivotSector : selectedCard?.sector} onSelect={(sector, zone) => { setSelectedSector(sector); setSelectedZone(zone); }} /></div>
                   )
                 )}
 
                 {selectedAction === 'opponent' && (
                   <div className="origin-top flex flex-col gap-1 -mx-2 scale-90"><OpponentSelector opponents={opponents} selectedId={selectedOpponent} onSelect={setSelectedOpponent} /></div>
-                )}
-
-                {isPivot && (selectedAction === 'portfolio' || selectedAction === 'opponent') && (
-                  <div className="origin-top flex flex-col gap-1 -mx-2 scale-90"><PivotSectorSelector selectedSector={pivotSector} onSelect={setPivotSector} /></div>
                 )}
 
                 {/* Confirm button inside right pane */}
