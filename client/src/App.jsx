@@ -158,14 +158,25 @@ function LobbyPage() {
 
   // Navigate to the game board only once the game has actually started
   useEffect(() => {
-    if (phase === 'playing' && gameId) navigate(`/game/${gameId}`);
+    if (phase === 'playing' && gameId) {
+      localStorage.setItem('bb_last_game_id', gameId);
+      navigate(`/game/${gameId}`);
+    }
+    if (phase === 'finished') {
+      localStorage.removeItem('bb_last_game_id');
+    }
   }, [phase, gameId, navigate]);
 
   useEffect(() => {
-    if (startGameId && connected && !gameId) {
-      joinGame(startGameId, telegramId, name);
+    if (connected && !gameId) {
+      if (startGameId) {
+        joinGame(startGameId, telegramId, name);
+      } else {
+        const lastId = localStorage.getItem('bb_last_game_id');
+        if (lastId) joinGame(lastId, telegramId, name);
+      }
     }
-  }, [connected]); // eslint-disable-line
+  }, [connected, startGameId, gameId, telegramId, name, joinGame]);
 
   // Auto-start once lobby is ready in AI mode (user is always host here)
   useEffect(() => {

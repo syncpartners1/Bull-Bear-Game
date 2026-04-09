@@ -179,6 +179,7 @@ function processAITurn(io, state, aiPlayer, turnCards) {
     if (!fresh) return;
     const current = fresh.players[fresh.currentPlayerIndex];
     if (current.id !== aiPlayer.id) return; // someone else's turn now
+    if (!current.isAI) return; // Player has rejoined! Stand down.
 
     let decision;
     try {

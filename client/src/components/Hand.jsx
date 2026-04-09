@@ -137,7 +137,7 @@ export default function Hand() {
           {/* Card Side */}
           <div className="flex flex-col items-center shrink-0">
             <Card
-              card={isPivot && pivotSector ? { ...selectedCard, sector: pivotSector } : selectedCard}
+              card={isPivot && pivotSector ? { ...selectedCard, sector: pivotSector, type: 'share_unit' } : selectedCard}
               faceDown={false}
               large
               selected={true}
@@ -209,15 +209,29 @@ export default function Hand() {
       ) : (
         <div className="flex flex-col gap-3">
           <div className="flex gap-2 justify-center">
-            {myTurnCards.map((card) => (
-              <Card
-                key={card.id}
-                card={card}
-                faceDown={false}
-                selected={false}
-                onClick={() => { setSelectedCard(card); setPivotSector(null); }}
-              />
-            ))}
+            {myTurnCards.map((card) => {
+              const isSelected = selectedCard?.id === card.id;
+              const displayCard = (isSelected && isPivot && pivotSector)
+                ? { ...card, sector: pivotSector, type: 'share_unit' }
+                : card;
+              return (
+                <Card
+                  key={card.id}
+                  card={displayCard}
+                  faceDown={false}
+                  selected={isSelected}
+                  onClick={() => { 
+                    if (isSelected) {
+                      setSelectedCard(null);
+                      setPivotSector(null);
+                    } else {
+                      setSelectedCard(card); 
+                      setPivotSector(null);
+                    }
+                  }}
+                />
+              );
+            })}
           </div>
           {/* Default disabled confirm button when no card selected to maintain structure consistency */}
           <button
@@ -262,31 +276,32 @@ function PivotSectorSelector({ selectedSector, onSelect }) {
 function MarketTargetSelector({ selectedSector, selectedZone, cardSector, onSelect }) {
   return (
     <div className="flex flex-col gap-2">
-      <p className="text-xs text-gray-400 text-center">Choose sector and zone:</p>
-      <div className="grid grid-cols-2 gap-1">
+      <p className="text-xs text-gray-400 text-center">Choose zone for {cardSector?.toUpperCase()}:</p>
+      <div className="flex justify-center gap-2">
         {SECTORS.map((sector) => {
-          const isDisabled = cardSector && sector !== cardSector;
+          if (cardSector && sector !== cardSector) return null;
           return (
-          <div key={sector} className={`flex flex-col gap-1 transition-opacity ${isDisabled ? 'opacity-30 pointer-events-none' : ''}`}>
-            {['bull', 'bear'].map((zone) => {
-              const active = selectedSector === sector && selectedZone === zone;
-              return (
-                <button
-                  key={zone}
-                  onClick={() => onSelect(sector, zone)}
-                  className={`text-[10px] rounded-lg px-2 py-1.5 font-semibold border transition-colors
-                    ${active
-                      ? 'border-yellow-400 bg-yellow-900/50 text-yellow-300'
-                      : zone === 'bull'
-                        ? 'border-green-700 bg-green-950/40 text-green-400 hover:bg-green-900/50'
-                        : 'border-red-700 bg-red-950/40 text-red-400 hover:bg-red-900/50'}`}
-                >
-                  {SECTOR_META[sector]?.label} {zone === 'bull' ? '▲' : '▼'}
-                </button>
-              );
-            })}
-          </div>
-        )})}
+            <div key={sector} className="flex gap-2">
+              {['bull', 'bear'].map((zone) => {
+                const active = selectedSector === sector && selectedZone === zone;
+                return (
+                  <button
+                    key={zone}
+                    onClick={() => onSelect(sector, zone)}
+                    className={`rounded-lg px-4 py-3 font-bold border transition-colors
+                      ${active
+                        ? 'border-yellow-400 bg-yellow-900/50 text-yellow-300'
+                        : zone === 'bull'
+                          ? 'border-green-600 bg-green-950/40 text-green-400'
+                          : 'border-red-600 bg-red-950/40 text-red-400'}`}
+                  >
+                    {zone === 'bull' ? 'BULL ▲' : 'BEAR ▼'}
+                  </button>
+                );
+              })}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
