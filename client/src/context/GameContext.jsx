@@ -38,6 +38,7 @@ function gameReducer(state, action) {
         myTurnCards: state.myTurnCards.filter((c) => c.id !== action.cardId),
       };
     case 'HOSTILE_TAKEOVER_ACTIVATED':
+    case 'HOSTILE_TAKEOVER_SKIPPED':
       return { ...state, pendingAbility: false };
     case 'GAME_OVER':
       return { ...state, finalScores: action.scores, winnerId: action.winnerId, phase: 'finished' };
@@ -85,6 +86,7 @@ export function GameProvider({ children }) {
     socket.on('turn_started',             (data) => dispatch({ type: 'TURN_STARTED', ...data }));
     socket.on('card_allocated',           (data) => dispatch({ type: 'CARD_ALLOCATED', ...data }));
     socket.on('hostile_takeover_activated',(data) => dispatch({ type: 'HOSTILE_TAKEOVER_ACTIVATED', ...data }));
+    socket.on('hostile_takeover_skipped', (data) => dispatch({ type: 'HOSTILE_TAKEOVER_SKIPPED', ...data }));
     socket.on('game_over',                (data) => dispatch({ type: 'GAME_OVER', ...data }));
     socket.on('error',                    (data) => dispatch({ type: 'ERROR', message: data.message }));
 
@@ -97,6 +99,7 @@ export function GameProvider({ children }) {
       socket.off('turn_started');
       socket.off('card_allocated');
       socket.off('hostile_takeover_activated');
+      socket.off('hostile_takeover_skipped');
       socket.off('game_over');
       socket.off('error');
     };
