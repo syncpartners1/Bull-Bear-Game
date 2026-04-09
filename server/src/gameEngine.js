@@ -199,12 +199,12 @@ export function allocateCard(state, playerId, cardId, step, extra = {}) {
   if (card.type === 'pivot') {
     if (step === 'market') {
       if (!SECTORS.includes(extra.sector)) return { state, error: 'Invalid sector for Pivot card' };
-      card = { ...card, sector: extra.sector };
+      card = { ...card, sector: extra.sector, type: 'share_unit' };
     } else {
       if (!SECTORS.includes(extra.pivotSector)) {
         return { state, error: 'Pivot card requires a sector selection (pivotSector)' };
       }
-      card = { ...card, sector: extra.pivotSector };
+      card = { ...card, sector: extra.pivotSector, type: 'share_unit' };
     }
   }
 

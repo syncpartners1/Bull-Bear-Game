@@ -76,15 +76,22 @@ export default function Hand() {
 
   // ── Confirm button logic ───────────────────────────────────────────────────
   const isPivot = selectedCard?.type === 'pivot';
+  const isInsider = selectedCard?.type === 'insider_trading';
 
-  const canConfirm =
-    selectedCard &&
-    selectedAction &&
-    (
-      (selectedAction === 'portfolio' && (!isPivot || pivotSector)) ||
-      (selectedAction === 'market' && (selectedCard.type === 'insider_trading' ? selectedZone : (selectedSector && selectedZone))) ||
-      (selectedAction === 'opponent' && selectedOpponent && (!isPivot || pivotSector))
-    );
+  let canConfirm = false;
+  if (selectedCard && selectedAction) {
+    if (selectedAction === 'portfolio') {
+      canConfirm = !isPivot || !!pivotSector;
+    } else if (selectedAction === 'opponent') {
+      canConfirm = !!selectedOpponent && (!isPivot || !!pivotSector);
+    } else if (selectedAction === 'market') {
+      if (isInsider) {
+        canConfirm = !!selectedZone;
+      } else {
+        canConfirm = !!selectedSector && !!selectedZone;
+      }
+    }
+  }
 
   function handleConfirm() {
     if (!canConfirm) return;
