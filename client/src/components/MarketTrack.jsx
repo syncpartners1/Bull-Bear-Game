@@ -55,7 +55,7 @@ export default function MarketTrack({ sector, marketData, onZoneSelect, selected
   );
 }
 
-function Zone({ label, cards, bgColor, borderColor, labelColor, active, onClick, showSelect }) {
+export function Zone({ label, cards, bgColor, borderColor, labelColor, active, onClick, showSelect }) {
   return (
     <div
       className={`rounded-lg border ${borderColor} ${bgColor} p-1.5 min-h-[52px]

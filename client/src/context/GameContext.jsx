@@ -33,6 +33,7 @@ function gameReducer(state, action) {
         ...state,
         lastAllocated: action.cardId,
         pendingAbility: action.activateAbility || false,
+        myTurnCards: state.myTurnCards.filter((c) => c.id !== action.cardId),
       };
     case 'HOSTILE_TAKEOVER_ACTIVATED':
       return { ...state, pendingAbility: false };

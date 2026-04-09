@@ -1,6 +1,6 @@
 // client/src/components/Board.jsx
 import { useState, useEffect } from 'react';
-import MarketTrack from './MarketTrack.jsx';
+import MarketTrack, { Zone } from './MarketTrack.jsx';
 import Portfolio from './Portfolio.jsx';
 import Hand from './Hand.jsx';
 import { useGame } from '../hooks/useGame.js';
@@ -21,6 +21,22 @@ export default function Board() {
       {/* Status bar */}
       <StatusBar phase={phase} deckCount={deck?.length ?? 0} currentPlayer={currentPlayer} isMyTurn={isMyTurn} />
 
+      {/* Mission Banner */}
+      {myPlayer?.missions?.length > 0 && (
+        <div className="flex flex-col gap-1 shrink-0 px-1">
+          {myPlayer.missions.map(m => (
+            <div key={m.id} className={`text-[10px] px-2 py-1.5 rounded-md border flex items-center justify-between shadow-sm ${m.missionType === 'market' ? 'bg-yellow-950/40 border-yellow-700/50 text-yellow-200' : 'bg-purple-950/40 border-purple-700/50 text-purple-200'}`}>
+              <div className="flex items-center gap-1.5 overflow-hidden">
+                <span className="text-xs shrink-0">{m.missionType === 'market' ? '📊' : '🎯'}</span>
+                <span className="font-bold uppercase tracking-wider shrink-0">{m.name}:</span>
+                <span className="text-gray-300 truncate" title={m.description}>{m.description}</span>
+              </div>
+              <span className="font-bold shrink-0 ml-2">+{m.bonusPoints}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Opponent portfolios (compact, top) */}
       <div className="flex gap-2 overflow-x-auto shrink-0">
         {opponents.map((p) => (
@@ -39,6 +55,12 @@ export default function Board() {
             marketData={market?.[sector]}
           />
         ))}
+        {/* Global Market Track */}
+        {(gameState?.unrevealedMarket?.bull?.length > 0 || gameState?.unrevealedMarket?.bear?.length > 0) && (
+          <div className="col-span-2">
+            <GlobalMarketTrack marketData={gameState.unrevealedMarket} />
+          </div>
+        )}
       </div>
 
       {/* My portfolio (compact) */}
@@ -226,6 +248,24 @@ function StatusBar({ phase, deckCount, currentPlayer, isMyTurn }) {
             <span className="text-white">{currentPlayer?.name}</span>'s turn
           </span>
         )}
+      </div>
+    </div>
+  );
+}
+
+function GlobalMarketTrack({ marketData }) {
+  const { bull = [], bear = [] } = marketData ?? {};
+  
+  return (
+    <div className="flex flex-col gap-1 rounded-xl border border-gray-700 bg-gray-900/60 p-2">
+      <div className="flex items-center justify-between px-1">
+        <span className="text-xs font-bold rounded px-2 py-0.5 text-white bg-gray-600 uppercase tracking-wide">
+          Global Insider Market
+        </span>
+      </div>
+      <div className="grid grid-cols-2 gap-1.5 mt-1">
+        <Zone label="BULL" cards={bull} bgColor="bg-green-950/40" borderColor="border-green-800" labelColor="text-green-400" />
+        <Zone label="BEAR" cards={bear} bgColor="bg-red-950/40" borderColor="border-red-800" labelColor="text-red-400" />
       </div>
     </div>
   );

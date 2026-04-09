@@ -4,13 +4,6 @@ import Card from './Card.jsx';
 import { useGame } from '../hooks/useGame.js';
 import { SECTOR_META } from '../utils/cardAssets.js';
 
-const STEP_LABELS = {
-  allocate_portfolio: { label: 'Step 1 of 3', hint: 'Add a card to your portfolio', color: 'text-yellow-400' },
-  allocate_market:    { label: 'Step 2 of 3', hint: 'Place a card in the Market',   color: 'text-blue-400'   },
-  allocate_opponent:  { label: 'Step 3 of 3', hint: "Add a card to an opponent's portfolio", color: 'text-red-400' },
-  end_turn:           { label: 'Turn done',   hint: 'Waiting for confirmation',      color: 'text-green-400' },
-};
-
 const SECTORS = ['tech', 'finance', 'energy', 'pharma'];
 
 export default function Hand() {
@@ -33,9 +26,9 @@ export default function Hand() {
   const [targetCard, setTargetCard] = useState(null);
   const [targetLocation, setTargetLocation] = useState(null); // 'portfolio' | 'market'
 
-  const turnStep = gameState?.turnStep;
-  const stepMeta = STEP_LABELS[turnStep] ?? {};
+  const remainingActions = gameState?.remainingActions ?? [];
   const opponents = gameState?.players?.filter((p) => p.id !== myPlayer?.id) ?? [];
+  const [selectedAction, setSelectedAction] = useState(null);
 
   // ── Hostile takeover UI ───────────────────────────────────────────────────
   if (pendingAbility) {
@@ -86,21 +79,26 @@ export default function Hand() {
 
   const canConfirm =
     selectedCard &&
+    selectedAction &&
     (
-      (turnStep === 'allocate_portfolio' && (!isPivot || pivotSector)) ||
-      (turnStep === 'allocate_market' && selectedSector && selectedZone) ||
-      (turnStep === 'allocate_opponent' && selectedOpponent && (!isPivot || pivotSector))
+      (selectedAction === 'portfolio' && (!isPivot || pivotSector)) ||
+      (selectedAction === 'market' && (selectedCard.type === 'insider_trading' ? selectedZone : (selectedSector && selectedZone))) ||
+      (selectedAction === 'opponent' && selectedOpponent && (!isPivot || pivotSector))
     );
 
   function handleConfirm() {
     if (!canConfirm) return;
-    const step = turnStep.replace('allocate_', '');
     const extra = {};
-    if (step === 'market') { extra.sector = selectedSector; extra.zone = selectedZone; }
-    if (step === 'opponent') { extra.targetPlayerId = selectedOpponent; }
-    if (isPivot && step !== 'market') extra.pivotSector = pivotSector;
-    allocateCard(selectedCard.id, step, extra);
+    if (selectedAction === 'market') { 
+      if (selectedCard.type !== 'insider_trading') extra.sector = selectedSector; 
+      extra.zone = selectedZone; 
+    }
+    if (selectedAction === 'opponent') { extra.targetPlayerId = selectedOpponent; }
+    if (isPivot && selectedAction !== 'market') extra.pivotSector = pivotSector;
+    
+    allocateCard(selectedCard.id, selectedAction, extra);
     setSelectedCard(null);
+    setSelectedAction(null);
     setSelectedSector(null);
     setSelectedZone(null);
     setSelectedOpponent(null);
@@ -121,38 +119,72 @@ export default function Hand() {
   return (
     <div className="rounded-xl border border-yellow-600/50 bg-gray-900/80 p-3 flex flex-col gap-3">
       {/* Step indicator */}
-      <div className="flex items-center justify-between">
-        <span className={`text-xs font-bold ${stepMeta.color}`}>{stepMeta.label}</span>
-        <span className="text-xs text-gray-400">{stepMeta.hint}</span>
+      <div className="flex items-center justify-between mb-1">
+        <span className="text-sm md:text-base font-extrabold text-white">Play {3 - remainingActions.length + 1} of 3</span>
+        <span className="text-sm font-medium text-gray-300">Choose a card to play</span>
       </div>
 
-      {/* Cards in hand */}
-      <div className="flex gap-2 justify-center">
-        {myTurnCards.map((card) => (
+      {/* Cards in hand / Selected Zoomed */}
+      {selectedCard ? (
+        <div className="flex flex-col items-center gap-2">
           <Card
-            key={card.id}
-            card={card}
+            card={selectedCard}
             faceDown={false}
-            selected={selectedCard?.id === card.id}
-            onClick={() => {
-              const toggled = selectedCard?.id === card.id ? null : card;
-              setSelectedCard(toggled);
-              setPivotSector(null); // reset pivot choice on card change
-            }}
+            large
+            selected={true}
+            onClick={() => { setSelectedCard(null); setSelectedAction(null); setPivotSector(null); }}
           />
-        ))}
-      </div>
-
-      {/* Step-specific targeting */}
-      {selectedCard && turnStep === 'allocate_market' && (
-        <MarketTargetSelector
-          selectedSector={selectedSector}
-          selectedZone={selectedZone}
-          onSelect={(sector, zone) => { setSelectedSector(sector); setSelectedZone(zone); }}
-        />
+          <p className="text-[10px] text-gray-500 italic">Tap card to unselect</p>
+          
+          {!selectedAction && (
+            <div className="flex flex-col gap-2 w-full max-w-sm mt-2">
+              <p className="text-xs text-center text-gray-400">Where do you want to play this card?</p>
+              <div className="flex flex-col gap-2">
+                {remainingActions.includes('portfolio') && (
+                  <button onClick={() => setSelectedAction('portfolio')} className="rounded-lg py-3 bg-yellow-900/50 border border-yellow-700 text-yellow-300 font-bold hover:bg-yellow-800/50 transition-colors shadow-sm">My Portfolio</button>
+                )}
+                {remainingActions.includes('market') && (
+                  <button onClick={() => setSelectedAction('market')} className="rounded-lg py-3 bg-blue-900/50 border border-blue-700 text-blue-300 font-bold hover:bg-blue-800/50 transition-colors shadow-sm">The Market</button>
+                )}
+                {remainingActions.includes('opponent') && (
+                  <button onClick={() => setSelectedAction('opponent')} className="rounded-lg py-3 bg-red-900/50 border border-red-700 text-red-300 font-bold hover:bg-red-800/50 transition-colors shadow-sm">An Opponent</button>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="flex gap-2 justify-center">
+          {myTurnCards.map((card) => (
+            <Card
+              key={card.id}
+              card={card}
+              faceDown={false}
+              selected={false}
+              onClick={() => { setSelectedCard(card); setPivotSector(null); }}
+            />
+          ))}
+        </div>
       )}
 
-      {selectedCard && turnStep === 'allocate_opponent' && (
+      {/* Step-specific targeting */}
+      {selectedCard && selectedAction === 'market' && (
+        selectedCard.type === 'insider_trading' ? (
+          <HiddenMarketTargetSelector
+            selectedZone={selectedZone}
+            onSelect={(zone) => setSelectedZone(zone)}
+          />
+        ) : (
+          <MarketTargetSelector
+            selectedSector={selectedSector}
+            selectedZone={selectedZone}
+            cardSector={selectedCard?.type === 'pivot' ? null : selectedCard?.sector}
+            onSelect={(sector, zone) => { setSelectedSector(sector); setSelectedZone(zone); }}
+          />
+        )
+      )}
+
+      {selectedCard && selectedAction === 'opponent' && (
         <OpponentSelector
           opponents={opponents}
           selectedId={selectedOpponent}
@@ -161,7 +193,7 @@ export default function Hand() {
       )}
 
       {/* Pivot sector picker — shown when a Pivot card is played to portfolio or opponent */}
-      {isPivot && (turnStep === 'allocate_portfolio' || turnStep === 'allocate_opponent') && (
+      {isPivot && (selectedAction === 'portfolio' || selectedAction === 'opponent') && (
         <PivotSectorSelector selectedSector={pivotSector} onSelect={setPivotSector} />
       )}
 
@@ -207,13 +239,15 @@ function PivotSectorSelector({ selectedSector, onSelect }) {
   );
 }
 
-function MarketTargetSelector({ selectedSector, selectedZone, onSelect }) {
+function MarketTargetSelector({ selectedSector, selectedZone, cardSector, onSelect }) {
   return (
     <div className="flex flex-col gap-2">
       <p className="text-xs text-gray-400 text-center">Choose sector and zone:</p>
       <div className="grid grid-cols-2 gap-1">
-        {SECTORS.map((sector) => (
-          <div key={sector} className="flex flex-col gap-1">
+        {SECTORS.map((sector) => {
+          const isDisabled = cardSector && sector !== cardSector;
+          return (
+          <div key={sector} className={`flex flex-col gap-1 transition-opacity ${isDisabled ? 'opacity-30 pointer-events-none' : ''}`}>
             {['bull', 'bear'].map((zone) => {
               const active = selectedSector === sector && selectedZone === zone;
               return (
@@ -232,7 +266,25 @@ function MarketTargetSelector({ selectedSector, selectedZone, onSelect }) {
               );
             })}
           </div>
-        ))}
+        )})}
+      </div>
+    </div>
+  );
+}
+
+function HiddenMarketTargetSelector({ selectedZone, onSelect }) {
+  return (
+    <div className="flex flex-col gap-2">
+      <p className="text-xs text-gray-400 text-center">Play to Global Insider Market:</p>
+      <div className="flex justify-center gap-2">
+        <button
+          onClick={() => onSelect('bull')}
+          className={`rounded-lg px-6 py-3 font-bold border transition-colors ${selectedZone === 'bull' ? 'border-green-400 bg-green-900/50 text-green-300' : 'border-green-700 bg-green-950/40 text-green-400'}`}
+        >Global Bull ▲</button>
+        <button
+          onClick={() => onSelect('bear')}
+          className={`rounded-lg px-6 py-3 font-bold border transition-colors ${selectedZone === 'bear' ? 'border-red-400 bg-red-900/50 text-red-300' : 'border-red-700 bg-red-950/40 text-red-400'}`}
+        >Global Bear ▼</button>
       </div>
     </div>
   );
@@ -370,9 +422,9 @@ function HostileTakeoverUI({ gameState, myPlayer, targetCard, targetLocation, se
         </button>
         <button
           onClick={onSkip}
-          className="flex-1 rounded-lg py-2 text-sm font-bold bg-gray-700 text-gray-300 hover:bg-gray-600 transition-colors"
+          className="flex-1 rounded-lg py-2 text-[10px] sm:text-xs font-bold bg-gray-700 text-gray-300 hover:bg-gray-600 transition-colors"
         >
-          Skip
+          Play as Normal Stock (Skip)
         </button>
       </div>
     </div>

@@ -111,13 +111,14 @@ export function createInitialState(gameId, players) {
     gameId,
     phase: 'playing',
     currentPlayerIndex: 0,
-    turnStep: 'allocate_portfolio',
+    remainingActions: ['portfolio', 'market', 'opponent'],
     turnCards: [],
     pendingHostileTakeover: null,
     _turnCardMap: {},
     deck,
     players: playersWithMissions,
     market: Object.fromEntries(SECTORS.map((s) => [s, { bull: [], bear: [], index: 0 }])),
+    unrevealedMarket: { bull: [], bear: [] },
     scores: [],
     winnerId: null,
     createdAt: new Date().toISOString(),
@@ -145,7 +146,7 @@ export function startTurn(state) {
     ...state,
     deck: newDeck,
     turnCards: drawnCards.map((c) => c.id),
-    turnStep: 'allocate_portfolio',
+    remainingActions: ['portfolio', 'market', 'opponent'],
     pendingHostileTakeover: null,
     _turnCardMap: Object.fromEntries(drawnCards.map((c) => [c.id, c])),
   });
@@ -169,8 +170,8 @@ export function allocateCard(state, playerId, cardId, step, extra = {}) {
   const currentPlayer = state.players[state.currentPlayerIndex];
   if (currentPlayer.id !== playerId) return { state, error: 'Not your turn' };
   if (!state.turnCards.includes(cardId)) return { state, error: 'Card not in hand' };
-  if (state.turnStep !== `allocate_${step}`) {
-    return { state, error: `Expected step allocate_${step}, got ${state.turnStep}` };
+  if (!state.remainingActions.includes(step)) {
+    return { state, error: `Action ${step} already used or invalid` };
   }
 
   let card = state._turnCardMap[cardId];
@@ -193,30 +194,40 @@ export function allocateCard(state, playerId, cardId, step, extra = {}) {
   }
 
   let newState = removeTurnCard(state, cardId);
+  const nextActions = state.remainingActions.filter((a) => a !== step);
   let activateAbility = false;
 
   if (step === 'portfolio') {
     newState = addToPortfolio(newState, currentPlayer.id, card);
-    newState = { ...newState, turnStep: 'allocate_market' };
     if (card.type === 'hostile_takeover') activateAbility = true;
   } else if (step === 'market') {
     const { sector, zone } = extra;
-    if (!SECTORS.includes(sector)) return { state, error: 'Invalid sector' };
-    if (!['bull', 'bear'].includes(zone)) return { state, error: 'Invalid zone (bull or bear)' };
-    newState = addToMarket(newState, sector, zone, card);
-    newState = { ...newState, turnStep: 'allocate_opponent' };
+    if (card.type === 'insider_trading') {
+      if (!['bull', 'bear'].includes(zone)) return { state, error: 'Invalid zone (bull or bear)' };
+      newState = {
+        ...newState,
+        unrevealedMarket: {
+          ...newState.unrevealedMarket,
+          [zone]: [...newState.unrevealedMarket[zone], card],
+        },
+      };
+    } else {
+      if (!SECTORS.includes(sector)) return { state, error: 'Invalid sector' };
+      if (!['bull', 'bear'].includes(zone)) return { state, error: 'Invalid zone (bull or bear)' };
+      newState = addToMarket(newState, sector, zone, card);
+    }
   } else if (step === 'opponent') {
     const { targetPlayerId } = extra;
     const target = newState.players.find((p) => p.id === targetPlayerId);
     if (!target) return { state, error: 'Target player not found' };
     if (target.id === currentPlayer.id) return { state, error: 'Cannot target yourself for opponent slot' };
     newState = addToPortfolio(newState, targetPlayerId, card);
-    newState = { ...newState, turnStep: 'end_turn' };
     if (card.type === 'hostile_takeover') activateAbility = true;
   } else {
     return { state, error: 'Invalid step' };
   }
 
+  newState.remainingActions = nextActions;
   return { state: touch(newState), activateAbility };
 }
 
@@ -284,7 +295,7 @@ export function endTurn(state) {
   return touch({
     ...state,
     currentPlayerIndex: nextIndex,
-    turnStep: 'allocate_portfolio',
+    remainingActions: ['portfolio', 'market', 'opponent'],
     turnCards: [],
     pendingHostileTakeover: null,
     _turnCardMap: {},
@@ -304,7 +315,19 @@ export function revealInsiderTrading(state) {
       c.type === 'insider_trading' ? { ...c, faceDown: false } : c
     ),
   }));
-  return touch({ ...state, players, phase: 'scoring' });
+
+  const market = { ...state.market };
+  for (const zone of ['bull', 'bear']) {
+    for (const card of state.unrevealedMarket.zone || state.unrevealedMarket[zone] || []) {
+      const sector = card.sector;
+      market[sector] = {
+        ...market[sector],
+        [zone]: [...market[sector][zone], { ...card, faceDown: false }],
+      };
+    }
+  }
+
+  return touch({ ...state, players, market, unrevealedMarket: { bull: [], bear: [] }, phase: 'scoring' });
 }
 
 // ─── Scoring ──────────────────────────────────────────────────────────────────
@@ -400,6 +423,13 @@ export function serializeForPlayer(state, viewingPlayerId) {
       }),
     };
   });
+
+  if (publicState.unrevealedMarket) {
+    publicState.unrevealedMarket = {
+      bull: publicState.unrevealedMarket.bull.map(c => ({ id: c.id, faceDown: true, type: 'hidden' })),
+      bear: publicState.unrevealedMarket.bear.map(c => ({ id: c.id, faceDown: true, type: 'hidden' }))
+    };
+  }
 
   return { ...publicState, players };
 }

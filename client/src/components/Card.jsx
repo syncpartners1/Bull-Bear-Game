@@ -16,7 +16,7 @@ const SECTOR_BG = {
   pharma:  'bg-pink-900/60',
 };
 
-export default function Card({ card, faceDown = false, selected = false, onClick, small = false }) {
+export default function Card({ card, faceDown = false, selected = false, onClick, small = false, large = false }) {
   const [flipped, setFlipped] = useState(false);
   const prevFaceDown = usePrevious(faceDown);
 
@@ -31,7 +31,7 @@ export default function Card({ card, faceDown = false, selected = false, onClick
   const sectorMeta = SECTOR_META[card?.sector];
   const imgPath = card?.type && card?.type !== 'hidden' ? getCardImagePath(card.sector, card.type) : null;
 
-  const sizeClass = small ? 'w-14 h-20 text-xs' : 'w-20 h-28 text-sm';
+  const sizeClass = large ? 'w-32 h-44 text-lg' : small ? 'w-16 h-24 text-xs' : 'w-24 h-32 text-sm';
   const borderColor = selected ? 'border-yellow-400 shadow-yellow-400/50' : (SECTOR_BORDER[card?.sector] ?? 'border-gray-600');
 
   return (
@@ -49,7 +49,7 @@ export default function Card({ card, faceDown = false, selected = false, onClick
           {imgPath ? (
             <img src={imgPath} alt={meta.label} className="w-full h-full object-cover rounded-xl" />
           ) : (
-            <FallbackCardFace card={card} meta={meta} sectorMeta={sectorMeta} small={small} />
+            <FallbackCardFace card={card} meta={meta} sectorMeta={sectorMeta} small={small} large={large} />
           )}
           {selected && (
             <div className="absolute inset-0 rounded-xl border-2 border-yellow-400 animate-pulse pointer-events-none" />
@@ -68,21 +68,21 @@ export default function Card({ card, faceDown = false, selected = false, onClick
   );
 }
 
-function FallbackCardFace({ card, meta, sectorMeta, small }) {
+function FallbackCardFace({ card, meta, sectorMeta, small, large }) {
   return (
     <div className="flex flex-col h-full p-1">
       <div className="flex items-center justify-between">
-        <span className={small ? 'text-xs' : 'text-sm'}>{meta.icon}</span>
-        <span className={`font-bold ${small ? 'text-xs' : 'text-sm'} text-white`}>
+        <span className={large ? 'text-lg' : small ? 'text-xs' : 'text-sm'}>{meta.icon}</span>
+        <span className={`font-bold ${large ? 'text-lg' : small ? 'text-xs' : 'text-sm'} text-white`}>
           {card?.value ?? meta.value}
         </span>
       </div>
       <div className="flex-1 flex items-center justify-center">
-        <span className={small ? 'text-lg' : 'text-2xl'}>{meta.icon}</span>
+        <span className={large ? 'text-4xl' : small ? 'text-lg' : 'text-2xl'}>{meta.icon}</span>
       </div>
       {sectorMeta && (
         <div
-          className={`text-center rounded px-1 py-0.5 ${small ? 'text-[9px]' : 'text-xs'} font-semibold text-white`}
+          className={`text-center rounded px-1 py-0.5 ${large ? 'text-sm' : small ? 'text-[9px]' : 'text-xs'} font-semibold text-white`}
           style={{ backgroundColor: sectorMeta.color }}
         >
           {sectorMeta.label}

@@ -331,7 +331,7 @@ export function registerHandlers(io, socket) {
     if (error) { emitError(socket, error); return; }
 
     // Still mid-turn — just save and broadcast
-    if (newState.turnStep !== 'end_turn') {
+    if (newState.remainingActions.length > 0) {
       saveGame(newState);
       broadcastGameState(io, newState);
       socket.emit('card_allocated', { step, cardId, activateAbility: activateAbility || false });
