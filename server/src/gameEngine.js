@@ -153,7 +153,7 @@ export function startTurn(state) {
   }
 
   const currentPlayer = state.players[state.currentPlayerIndex];
-  const timeoutMs = currentPlayer.isAI ? 30000 : 120000;
+  const timeoutMs = currentPlayer.isAI ? 30000 : 180000;
   const turnEndsAt = new Date(Date.now() + timeoutMs).toISOString();
 
   const newState = touch({

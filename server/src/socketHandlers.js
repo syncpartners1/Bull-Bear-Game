@@ -171,7 +171,7 @@ function advanceTurn(io, state) {
  * Delays execution slightly so clients see smooth progression.
  */
 function processAITurn(io, state, aiPlayer, turnCards) {
-  const delay = 900 + Math.floor(Math.random() * 600); // 0.9–1.5 s
+  const delay = 200 + Math.floor(Math.random() * 300); // reduced delay
 
   setTimeout(() => {
     // Re-fetch in case state changed (disconnect, etc.)
@@ -182,7 +182,20 @@ function processAITurn(io, state, aiPlayer, turnCards) {
 
     let decision;
     try {
-      decision = decideAITurn(fresh, aiPlayer, turnCards);
+      if (fresh.remainingActions.length === 3) {
+        decision = decideAITurn(fresh, aiPlayer, turnCards);
+      } else {
+        // Fallback for mid-turn takeover
+        decision = { useHostileTakeover: false };
+        const availableCards = [...turnCards];
+        for (const action of fresh.remainingActions) {
+          const c = availableCards.pop();
+          if (!c) continue;
+          if (action === 'portfolio') decision.portfolioCard = { ...c, sector: c.sector || 'tech' };
+          if (action === 'market') { decision.marketCard = { ...c, sector: c.sector || 'tech' }; decision.marketSector = c.sector || 'tech'; decision.marketZone = 'bull'; }
+          if (action === 'opponent') { decision.opponentCard = { ...c, sector: c.sector || 'tech' }; }
+        }
+      }
     } catch (err) {
       console.error(`[AI:${aiPlayer.name}] decideAITurn error:`, err.message);
       return;
@@ -193,30 +206,43 @@ function processAITurn(io, state, aiPlayer, turnCards) {
       decision.targetPlayerId ||
       fresh.players.find((p) => p.id !== aiPlayer.id)?.id;
 
+    let workingState = fresh;
+    let activatedAbility = false;
+
     // ── Step 1: portfolio ────────────────────────────────────────────────────
-    const r1 = allocateCard(fresh, aiPlayer.id, decision.portfolioCard.id, 'portfolio', {
-      pivotSector: decision.portfolioCard.sector,
-    });
-    if (r1.error) { console.error(`[AI:${aiPlayer.name}] portfolio:`, r1.error); return; }
+    if (fresh.remainingActions.includes('portfolio') && decision.portfolioCard) {
+      const result = allocateCard(workingState, aiPlayer.id, decision.portfolioCard.id, 'portfolio', {
+        pivotSector: decision.portfolioCard.sector,
+      });
+      if (!result.error) {
+        workingState = result.state;
+        if (result.activateAbility) activatedAbility = true;
+      }
+    }
 
     // ── Step 2: market ───────────────────────────────────────────────────────
-    const r2 = allocateCard(r1.state, aiPlayer.id, decision.marketCard.id, 'market', {
-      sector: decision.marketSector,
-      zone:   decision.marketZone,
-    });
-    if (r2.error) { console.error(`[AI:${aiPlayer.name}] market:`, r2.error); return; }
+    if (fresh.remainingActions.includes('market') && decision.marketCard) {
+      const result = allocateCard(workingState, aiPlayer.id, decision.marketCard.id, 'market', {
+        sector: decision.marketSector,
+        zone:   decision.marketZone,
+      });
+      if (!result.error) workingState = result.state;
+    }
 
     // ── Step 3: opponent ─────────────────────────────────────────────────────
-    const r3 = allocateCard(r2.state, aiPlayer.id, decision.opponentCard.id, 'opponent', {
-      targetPlayerId: opponentTarget,
-      pivotSector: decision.opponentCard.sector,
-    });
-    if (r3.error) { console.error(`[AI:${aiPlayer.name}] opponent:`, r3.error); return; }
-
-    let workingState = r3.state;
+    if (fresh.remainingActions.includes('opponent') && decision.opponentCard) {
+      const result = allocateCard(workingState, aiPlayer.id, decision.opponentCard.id, 'opponent', {
+        targetPlayerId: opponentTarget,
+        pivotSector: decision.opponentCard.sector,
+      });
+      if (!result.error) {
+        workingState = result.state;
+        if (result.activateAbility) activatedAbility = true;
+      }
+    }
 
     // ── Hostile Takeover (optional) ──────────────────────────────────────────
-    if ((r1.activateAbility || r3.activateAbility) && decision.useHostileTakeover && decision.hostileTarget) {
+    if (activatedAbility && decision.useHostileTakeover && decision.hostileTarget) {
       const ht = activateHostileTakeover(workingState, aiPlayer.id, decision.hostileTarget);
       if (!ht.error) {
         workingState = ht.state;
@@ -403,9 +429,12 @@ export function registerHandlers(io, socket) {
 
     // Still mid-turn — just save and broadcast
     if (newState.remainingActions.length > 0) {
+      const newTurnEndsAt = new Date(Date.now() + 180000).toISOString();
+      newState.turnEndsAt = newTurnEndsAt;
       saveGame(newState);
       broadcastGameState(io, newState);
       socket.emit('card_allocated', { step, cardId, activateAbility: activateAbility || false });
+      scheduleTurnTimeout(io, gameId, newTurnEndsAt);
       return;
     }
 
