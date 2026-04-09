@@ -217,8 +217,6 @@ export function allocateCard(state, playerId, cardId, step, extra = {}) {
     if (card.type === 'hostile_takeover') activateAbility = true;
   } else if (step === 'market') {
     const { sector, zone } = extra;
-    if (!SECTORS.includes(sector)) return { state, error: 'Invalid sector' };
-    if (card.sector && card.sector !== sector) return { state, error: 'Card must be placed in its matching sector' };
     
     if (card.type === 'insider_trading') {
       if (!['bull', 'bear'].includes(zone)) return { state, error: 'Invalid zone (bull or bear)' };
@@ -230,6 +228,8 @@ export function allocateCard(state, playerId, cardId, step, extra = {}) {
         },
       };
     } else {
+      if (!SECTORS.includes(sector)) return { state, error: 'Invalid sector' };
+      if (card.sector && card.sector !== sector) return { state, error: 'Card must be placed in its matching sector' };
       if (!['bull', 'bear'].includes(zone)) return { state, error: 'Invalid zone (bull or bear)' };
       newState = addToMarket(newState, sector, zone, card);
     }
