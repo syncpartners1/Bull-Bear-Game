@@ -7,6 +7,7 @@
  
 // Eagerly import every PNG from the cards directory so Vite includes them in
 // the build and returns their resolved public URLs.
+import pivotCardUrl from '../assets/cards/pivot_card.png';
 const _modules = import.meta.glob('../assets/cards/*.png', { eager: true });
  
 // filename (e.g. "Bank_Hostile.png") → resolved URL string
@@ -49,7 +50,7 @@ const FILE_MAP = {
  * Pivot cards use a single sector-independent image.
  */
 export function getCardImagePath(sector, type) {
-  if (type === 'pivot') return CARD_URLS['pivot_card.png'] ?? null;
+  if (type === 'pivot') return pivotCardUrl;
   const filename = FILE_MAP[`${sector}:${type}`];
   if (!filename) return null;
   return CARD_URLS[filename] ?? null;

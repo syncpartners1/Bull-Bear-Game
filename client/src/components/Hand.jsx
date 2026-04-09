@@ -336,11 +336,14 @@ function HostileTakeoverUI({ gameState, myPlayer, targetCard, targetLocation, se
   }
 
   return (
-    <div className="rounded-xl border border-red-600 bg-red-950/30 p-3 flex flex-col gap-3">
-      <div className="text-center">
+    <div className="rounded-xl border border-red-600 bg-red-950/30 p-2 flex flex-col gap-2 max-h-[65vh]">
+      <div className="text-center shrink-0">
         <p className="text-sm font-bold text-red-400">⚔️ Hostile Takeover</p>
         <p className="text-xs text-gray-400 mt-0.5">Select a card to remove (cannot remove Regulated Assets)</p>
       </div>
+
+      <div className="flex flex-col gap-3 overflow-y-auto pr-1 min-h-0 flex-1">
+
 
       {/* Portfolio targets */}
       <div>
@@ -415,7 +418,9 @@ function HostileTakeoverUI({ gameState, myPlayer, targetCard, targetLocation, se
         </div>
       </div>
 
-      <div className="flex gap-2">
+      </div>
+
+      <div className="flex gap-2 shrink-0 pt-2 border-t border-red-900/50">
         <button
           disabled={!selectedTarget}
           onClick={() => selectedTarget && onActivate(selectedTarget)}
