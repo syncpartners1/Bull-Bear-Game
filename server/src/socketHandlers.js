@@ -40,6 +40,7 @@ function broadcastToRoom(io, gameId, event, payload) {
 function emitError(socket, message) {
   socket.emit('error', { message });
 }
+
 /** Generate a unique 7-digit numeric game ID. */
 function generateGameId() {
   let id;
@@ -48,7 +49,7 @@ function generateGameId() {
   } while (getLobby(id) || getGame(id));
   return id;
 }
- 
+
 /**
  * Called after the 3rd card allocation (turnStep === 'end_turn').
  * Runs endTurn, startTurn, and handles the reveal/scoring phase.
@@ -56,7 +57,7 @@ function generateGameId() {
  */
 function advanceTurn(io, state) {
   let finalState = endTurn(state);
- 
+
   if (finalState.phase === 'reveal') {
     finalState = revealInsiderTrading(finalState);
     saveGame(finalState);
@@ -72,11 +73,11 @@ function advanceTurn(io, state) {
     }, 3000);
     return { finalState, nextTurnCards: [], gameOver: true };
   }
- 
+
   const drawResult = startTurn(finalState);
   finalState = drawResult.state;
   const nextTurnCards = drawResult.drawnCards;
- 
+
   if (finalState.phase === 'reveal') {
     finalState = revealInsiderTrading(finalState);
     saveGame(finalState);
@@ -92,24 +93,24 @@ function advanceTurn(io, state) {
     }, 3000);
     return { finalState, nextTurnCards: [], gameOver: true };
   }
- 
+
   return { finalState, nextTurnCards, gameOver: false };
 }
- 
+
 /**
  * Execute an AI player's full turn (all 3 allocations + optional hostile takeover).
  * Delays execution slightly so clients see smooth progression.
  */
 function processAITurn(io, state, aiPlayer, turnCards) {
   const delay = 900 + Math.floor(Math.random() * 600); // 0.9–1.5 s
- 
+
   setTimeout(() => {
     // Re-fetch in case state changed (disconnect, etc.)
     const fresh = getGame(state.gameId);
     if (!fresh) return;
     const current = fresh.players[fresh.currentPlayerIndex];
     if (current.id !== aiPlayer.id) return; // someone else's turn now
- 
+
     let decision;
     try {
       decision = decideAITurn(fresh, aiPlayer, turnCards);
@@ -117,34 +118,34 @@ function processAITurn(io, state, aiPlayer, turnCards) {
       console.error(`[AI:${aiPlayer.name}] decideAITurn error:`, err.message);
       return;
     }
- 
+
     // Resolve a valid opponent target (fallback to first non-self player)
     const opponentTarget =
       decision.targetPlayerId ||
       fresh.players.find((p) => p.id !== aiPlayer.id)?.id;
- 
+
     // ── Step 1: portfolio ────────────────────────────────────────────────────
     const r1 = allocateCard(fresh, aiPlayer.id, decision.portfolioCard.id, 'portfolio', {
       pivotSector: decision.portfolioCard.sector,
     });
     if (r1.error) { console.error(`[AI:${aiPlayer.name}] portfolio:`, r1.error); return; }
- 
+
     // ── Step 2: market ───────────────────────────────────────────────────────
     const r2 = allocateCard(r1.state, aiPlayer.id, decision.marketCard.id, 'market', {
       sector: decision.marketSector,
       zone:   decision.marketZone,
     });
     if (r2.error) { console.error(`[AI:${aiPlayer.name}] market:`, r2.error); return; }
- 
+
     // ── Step 3: opponent ─────────────────────────────────────────────────────
     const r3 = allocateCard(r2.state, aiPlayer.id, decision.opponentCard.id, 'opponent', {
       targetPlayerId: opponentTarget,
       pivotSector: decision.opponentCard.sector,
     });
     if (r3.error) { console.error(`[AI:${aiPlayer.name}] opponent:`, r3.error); return; }
- 
+
     let workingState = r3.state;
- 
+
     // ── Hostile Takeover (optional) ──────────────────────────────────────────
     if ((r1.activateAbility || r3.activateAbility) && decision.useHostileTakeover && decision.hostileTarget) {
       const ht = activateHostileTakeover(workingState, aiPlayer.id, decision.hostileTarget);
@@ -156,13 +157,13 @@ function processAITurn(io, state, aiPlayer, turnCards) {
         });
       }
     }
- 
+
     // ── Advance turn ─────────────────────────────────────────────────────────
     const { finalState, nextTurnCards, gameOver } = advanceTurn(io, workingState);
     saveGame(finalState);
     broadcastGameState(io, finalState);
     if (gameOver) return;
- 
+
     // ── Notify next player ───────────────────────────────────────────────────
     const nextPlayer = finalState.players[finalState.currentPlayerIndex];
     if (nextPlayer.isAI) {
@@ -176,7 +177,7 @@ function processAITurn(io, state, aiPlayer, turnCards) {
     }
   }, delay);
 }
- 
+
 // ─── Handler registration ─────────────────────────────────────────────────────
 
 export function registerHandlers(io, socket) {
@@ -185,14 +186,12 @@ export function registerHandlers(io, socket) {
   // Payload: { gameId?: string, telegramInitData?: string, name: string, telegramId: string }
   // Omit gameId to create a new lobby; include it to join an existing one.
   socket.on('join_game', ({ gameId, telegramInitData, name, telegramId }) => {
-    // Verify the request came from a real Telegram client
     const auth = verifyInitData(telegramInitData);
     if (!auth.valid) {
       emitError(socket, `Authentication failed: ${auth.error}`);
       return;
     }
 
-    // Prefer verified identity from initData; fall back to client-supplied values
     const verifiedUser = auth.data?.user;
     const resolvedTelegramId = String(verifiedUser?.id ?? telegramId ?? socket.id);
     const resolvedName = verifiedUser
@@ -289,9 +288,9 @@ export function registerHandlers(io, socket) {
       connected:  true,
       isAI:       true,
     }));
- 
+
     const allPlayers = [...lobby.players, ...aiPlayers];
- 
+
     let state = createInitialState(gameId, allPlayers);
     const { state: stateAfterDraw, drawnCards } = startTurn(state);
     state = stateAfterDraw;
@@ -339,19 +338,12 @@ export function registerHandlers(io, socket) {
       return;
     }
 
-    // If all 3 allocation steps complete, advance the turn
+    // All 3 steps done — advance the turn
     const { finalState, nextTurnCards, gameOver } = advanceTurn(io, newState);
-    if (gameOver) {
-      saveGame(finalState);
-      broadcastGameState(io, finalState);
-      socket.emit('card_allocated', { step, cardId, activateAbility: activateAbility || false });
-      return;
-    }
-
-    // Start next player's turn
     saveGame(finalState);
     broadcastGameState(io, finalState);
     socket.emit('card_allocated', { step, cardId, activateAbility: activateAbility || false });
+    if (gameOver) return;
 
     const nextPlayer = finalState.players[finalState.currentPlayerIndex];
     if (nextPlayer.isAI) {
@@ -366,8 +358,6 @@ export function registerHandlers(io, socket) {
   });
 
   // ── activate_hostile_takeover ─────────────────────────────────────────────
-  // Payload: { gameId, target: { location: 'portfolio'|'market', cardId,
-  //            playerId?, sector?, zone? } }
   socket.on('activate_hostile_takeover', ({ gameId, target }) => {
     const state = getGame(gameId);
     if (!state) { emitError(socket, 'Game not found'); return; }
@@ -387,11 +377,9 @@ export function registerHandlers(io, socket) {
   });
 
   // ── skip_hostile_takeover ─────────────────────────────────────────────────
-  // Player chose not to use the hostile takeover ability this turn.
   socket.on('skip_hostile_takeover', ({ gameId }) => {
     const state = getGame(gameId);
     if (!state) { emitError(socket, 'Game not found'); return; }
-    // No state change needed — just acknowledge
     socket.emit('hostile_takeover_skipped', { gameId });
   });
 

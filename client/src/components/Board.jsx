@@ -11,7 +11,7 @@ export default function Board() {
   const { gameState, myPlayer, currentPlayer, isMyTurn, opponents } = useGame();
 
   if (!gameState) {
-     return <LoadingScreen />;
+    return <LoadingScreen />;
   }
 
   const { market, players, phase, deck } = gameState;
@@ -60,18 +60,17 @@ export default function Board() {
   );
 }
 
-
 // ─── Loading screen with progress bar + event log ─────────────────────────────
- 
+
 function LoadingScreen() {
   const { connected, phase, myPlayer, lastError } = useGame();
   const [elapsed, setElapsed] = useState(0);
- 
+
   useEffect(() => {
     const id = setInterval(() => setElapsed((e) => e + 1), 1000);
     return () => clearInterval(id);
   }, []);
- 
+
   // Steps in order; the last one ("Receiving state") is never marked done here
   // because if it were, gameState would be set and this screen wouldn't render.
   const steps = [
@@ -80,42 +79,42 @@ function LoadingScreen() {
     { label: 'Game started',      done: phase === 'playing' },
     { label: 'Receiving state',   done: false },
   ];
- 
+
   const doneCount = steps.filter((s) => s.done).length;
   // Each done step = 25 %; active step pulses between 0–12 %
   const pct = Math.min(97, doneCount * 25 + (doneCount < steps.length ? 8 : 0));
- 
+
   const isStuck = elapsed >= 12;
- 
+
   // Build the debug log entries
   const log = [];
   if (connected)
     log.push({ ok: true,  text: 'Socket connected to server' });
   else
     log.push({ ok: false, text: 'Waiting for socket connection…' });
- 
+
   if (myPlayer)
     log.push({ ok: true,  text: `Joined as "${myPlayer.name}"` });
   else if (connected)
     log.push({ ok: false, text: 'join_game emitted — awaiting server ack…' });
- 
+
   if (phase === 'playing')
     log.push({ ok: true,  text: 'game_started received from server' });
   else if (myPlayer)
     log.push({ ok: false, text: 'Waiting for host to start the game…' });
- 
+
   if (phase === 'playing' && myPlayer)
     log.push({ ok: false, text: 'Waiting for initial game_state event…' });
- 
+
   if (lastError)
     log.push({ ok: false, text: `Server error: ${lastError}` });
- 
+
   if (isStuck && !lastError)
     log.push({ ok: false, text: 'No game_state after 12 s — server may be busy or the game has no host.' });
- 
+
   return (
     <div className="flex flex-col items-center justify-center h-full p-6 gap-5">
- 
+
       {/* Title */}
       <div className="text-center">
         <p className="text-white font-semibold text-sm">
@@ -123,14 +122,14 @@ function LoadingScreen() {
         </p>
         <p className="text-gray-500 text-xs mt-0.5">{elapsed}s elapsed</p>
       </div>
- 
+
       {/* Progress bar */}
       <div className="w-full max-w-xs">
         <div className="flex justify-between text-[10px] text-gray-500 mb-1">
           <span>Step {Math.min(doneCount + 1, steps.length)} / {steps.length}</span>
           <span>{Math.round(pct)}%</span>
         </div>
- 
+
         {/* Track */}
         <div className="h-2 bg-gray-800 rounded-full overflow-hidden">
           <div
@@ -141,7 +140,7 @@ function LoadingScreen() {
             }}
           />
         </div>
- 
+
         {/* Step dots */}
         <div className="flex justify-between mt-2">
           {steps.map((step, i) => (
@@ -168,7 +167,7 @@ function LoadingScreen() {
           ))}
         </div>
       </div>
- 
+
       {/* Debug log */}
       <div className="w-full max-w-xs bg-gray-900 border border-gray-700 rounded-xl p-3">
         <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-2">
@@ -192,7 +191,7 @@ function LoadingScreen() {
           )}
         </div>
       </div>
- 
+
       {/* Reload hint after timeout */}
       {isStuck && (
         <button
@@ -205,10 +204,9 @@ function LoadingScreen() {
     </div>
   );
 }
- 
- 
+
 // ─── In-game status bar ───────────────────────────────────────────────────────
- 
+
 function StatusBar({ phase, deckCount, currentPlayer, isMyTurn }) {
   return (
     <div className="flex items-center justify-between bg-gray-800 rounded-lg px-3 py-1.5 shrink-0">

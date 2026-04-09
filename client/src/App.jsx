@@ -319,7 +319,7 @@ function LobbyPage() {
             </div>
           </div>
 
-           {isHost && (
+          {isHost && (
             <div className="rounded-xl border border-gray-700 bg-gray-800 p-3">
               <p className="text-xs text-gray-400 mb-2">🤖 AI bots (optional)</p>
               <div className="flex gap-2 flex-wrap">
