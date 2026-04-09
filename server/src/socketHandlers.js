@@ -483,8 +483,15 @@ export function registerHandlers(io, socket) {
 
   // ── skip_hostile_takeover ─────────────────────────────────────────────────
   socket.on('skip_hostile_takeover', ({ gameId }) => {
-    const state = getGame(gameId);
+    let state = getGame(gameId);
     if (!state) { emitError(socket, 'Game not found'); return; }
+
+    if (state.pendingHostileTakeover) {
+      state.pendingHostileTakeover = null;
+      saveGame(state);
+      broadcastGameState(io, state);
+    }
+    
     socket.emit('hostile_takeover_skipped', { gameId });
   });
 

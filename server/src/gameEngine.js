@@ -245,6 +245,9 @@ export function allocateCard(state, playerId, cardId, step, extra = {}) {
   }
 
   newState.remainingActions = nextActions;
+  if (activateAbility) {
+    newState.pendingHostileTakeover = { cardId: card.id };
+  }
   return { state: touch(newState), activateAbility };
 }
 
@@ -275,7 +278,15 @@ export function activateHostileTakeover(state, playerId, target) {
     const newPlayers = state.players.map((p) =>
       p.id === owner.id ? { ...p, portfolio: p.portfolio.filter((c) => c.id !== cardId) } : p
     );
-    return { state: touch({ ...state, players: newPlayers }), removedCard: card };
+    let workingState = touch({ ...state, players: newPlayers });
+
+    const htCardId = workingState.pendingHostileTakeover?.cardId;
+    if (htCardId) {
+      workingState = removeCardFromEverywhere(workingState, htCardId);
+      workingState.pendingHostileTakeover = null;
+    }
+
+    return { state: workingState, removedCard: card };
   }
 
   if (location === 'market') {
@@ -295,10 +306,36 @@ export function activateHostileTakeover(state, playerId, target) {
         [zone]: zoneCards.filter((c) => c.id !== cardId),
       },
     };
-    return { state: touch({ ...state, market: newMarket }), removedCard: card };
+    let workingState = touch({ ...state, market: newMarket });
+
+    const htCardId = workingState.pendingHostileTakeover?.cardId;
+    if (htCardId) {
+      workingState = removeCardFromEverywhere(workingState, htCardId);
+      workingState.pendingHostileTakeover = null;
+    }
+
+    return { state: workingState, removedCard: card };
   }
 
   return { state, error: 'Invalid target location' };
+}
+
+function removeCardFromEverywhere(state, cardId) {
+  const players = state.players.map((p) => ({
+    ...p,
+    portfolio: p.portfolio.filter((c) => c.id !== cardId),
+  }));
+
+  const market = { ...state.market };
+  for (const s of SECTORS) {
+    market[s] = {
+      ...market[s],
+      bull: market[s].bull.filter((c) => c.id !== cardId),
+      bear: market[s].bear.filter((c) => c.id !== cardId),
+    };
+  }
+
+  return { ...state, players, market };
 }
 
 // ─── Turn advancement ─────────────────────────────────────────────────────────
