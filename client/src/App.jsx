@@ -149,6 +149,12 @@ function LobbyPage() {
   const [aiCount,   setAiCount]   = useState(1);
   const [autoStart, setAutoStart] = useState(false);
 
+  // Derived state — must be declared before any useEffect that references them
+  const isHost      = lobby?.hostId === myPlayer?.id;
+  const humanCount  = lobby?.players?.length ?? 0;
+  const totalWithAI = humanCount + aiCount;
+  const canStart    = totalWithAI >= 2 && totalWithAI <= 4;
+
   // Navigate to the game board only once the game has actually started
   useEffect(() => {
     if (phase === 'playing' && gameId) navigate(`/game/${gameId}`);
@@ -179,11 +185,6 @@ function LobbyPage() {
   function handleStart() {
     startGame(aiCount);
   }
-
-  const isHost      = lobby?.hostId === myPlayer?.id;
-  const humanCount  = lobby?.players?.length ?? 0;
-  const totalWithAI = humanCount + aiCount;
-  const canStart    = totalWithAI >= 2 && totalWithAI <= 4;
 
   return (
     <div className="flex flex-col items-center justify-center h-full p-6 gap-5 overflow-y-auto">
