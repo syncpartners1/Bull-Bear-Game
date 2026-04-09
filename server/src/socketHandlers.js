@@ -416,7 +416,7 @@ export function registerHandlers(io, socket) {
   // ── allocate_card ─────────────────────────────────────────────────────────
   // Payload: { gameId, cardId, step: 'portfolio'|'market'|'opponent',
   //            sector?, zone?, targetPlayerId? }
-  socket.on('allocate_card', ({ gameId, cardId, step, sector, zone, targetPlayerId }) => {
+  socket.on('allocate_card', ({ gameId, cardId, step, sector, zone, targetPlayerId, pivotSector }) => {
     const state = getGame(gameId);
     if (!state) { emitError(socket, 'Game not found'); return; }
 
@@ -424,7 +424,7 @@ export function registerHandlers(io, socket) {
     if (!player) { emitError(socket, 'Player not in this game'); return; }
 
     const { state: newState, error, activateAbility } = allocateCard(
-      state, player.id, cardId, step, { sector, zone, targetPlayerId }
+      state, player.id, cardId, step, { sector, zone, targetPlayerId, pivotSector }
     );
     if (error) { emitError(socket, error); return; }
 
