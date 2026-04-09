@@ -7,7 +7,7 @@
  
 // Eagerly import every PNG from the cards directory so Vite includes them in
 // the build and returns their resolved public URLs.
-import pivotCardUrl from '../assets/cards/pivot_card.png';
+import pivotCardUrl from '../assets/cards/Pivot_card.png';
 const _modules = import.meta.glob('../assets/cards/*.png', { eager: true });
  
 // filename (e.g. "Bank_Hostile.png") → resolved URL string
