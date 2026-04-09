@@ -148,6 +148,7 @@ function LobbyPage() {
   const [mode,      setMode]      = useState(startInAiMode ? 'ai' : 'players');
   const [aiCount,   setAiCount]   = useState(1);
   const [autoStart, setAutoStart] = useState(false);
+  const [showHowToPlay, setShowHowToPlay] = useState(false);
 
   // Derived state — must be declared before any useEffect that references them
   const isHost      = lobby?.hostId === myPlayer?.id;
@@ -190,6 +191,12 @@ function LobbyPage() {
     <div className="flex flex-col items-center justify-center h-full p-6 gap-5 overflow-y-auto">
 
       <LogoOrTitle />
+
+      <div className="text-center w-full max-w-xs mt-[-10px]">
+        <button onClick={() => setShowHowToPlay(true)} className="text-xs text-blue-400 underline hover:text-blue-300">
+          How to Play & Rules
+        </button>
+      </div>
 
       <div className={`text-xs ${connected ? 'text-green-400' : 'text-red-400'}`}>
         {connected ? '● Connected' : '○ Connecting…'}
@@ -350,6 +357,8 @@ function LobbyPage() {
           )}
         </div>
       )}
+
+      {showHowToPlay && <HowToPlayModal onClose={() => setShowHowToPlay(false)} />}
     </div>
   );
 }
@@ -368,4 +377,45 @@ function GamePage() {
   }, [connected, gameState, routeGameId, joinGame]);
 
   return <Board />;
+}
+
+// ─── How to Play Modal ────────────────────────────────────────────────────────
+
+function HowToPlayModal({ onClose }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm" onClick={onClose}>
+      <div className="bg-gray-900 border border-gray-700 rounded-xl p-5 max-w-sm w-full max-h-[85vh] overflow-y-auto shadow-2xl" onClick={e => e.stopPropagation()}>
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-bold text-yellow-400">How to Play</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-white bg-gray-800 rounded-full w-8 h-8 flex items-center justify-center">✕</button>
+        </div>
+        <div className="space-y-4 text-sm text-gray-300">
+          <p><strong>Goal:</strong> Gain the most points by manipulating the market, fulfilling hidden missions, and building your portfolio.</p>
+          <div className="bg-gray-800 p-3 rounded-lg border border-gray-700">
+            <h3 className="font-bold text-white mb-1">Your Turn:</h3>
+             Every turn you draw 3 cards. You must play:
+             <ul className="list-disc pl-5 mt-1 space-y-1">
+               <li>One to the <strong>Market</strong></li>
+               <li>One to <strong>Your Portfolio</strong></li>
+               <li>One to an <strong>Opponent's Portfolio</strong></li>
+             </ul>
+             <p className="mt-1 italic text-gray-400 text-xs">You can play them in any order!</p>
+          </div>
+          <p><strong>The Market:</strong> Divided into 4 sectors (Tech, Finance, Energy, Pharma). Playing a Bull card here increases the sector's value. A Bear card decreases it.</p>
+          <p><strong>Scoring:</strong> At the end of the game, each standard stock card in your portfolio is worth points equal to its market's final index (-1, 0, +1, or +2). Fulfilling your strategy and market missions gives substantial bonuses!</p>
+          <div>
+            <strong>Special Cards:</strong>
+            <ul className="list-disc pl-5 mt-1 space-y-1">
+               <li><span className="text-red-400 font-bold">Hostile Takeover:</span> Destroys any card in play.</li>
+               <li><span className="text-blue-400 font-bold">Insider Trading:</span> Hidden sector until the end of the game when played to the market.</li>
+               <li><span className="text-purple-400 font-bold">Pivot:</span> Allows you to choose its sector dynamically.</li>
+            </ul>
+          </div>
+          <button onClick={onClose} className="w-full mt-4 bg-yellow-500 hover:bg-yellow-400 text-black font-bold py-2 rounded-lg">
+            Got it
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }

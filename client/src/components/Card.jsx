@@ -36,9 +36,11 @@ export default function Card({ card, faceDown = false, selected = false, onClick
 
   return (
     <div
-      className={`card-flip ${flipped ? 'flipped' : ''} ${sizeClass} cursor-pointer`}
+      className={`card-flip ${flipped ? 'flipped' : ''} ${sizeClass} cursor-pointer select-none`}
       onClick={onClick}
       style={{ perspective: 1000 }}
+      aria-label={faceDown ? "Face down card" : `${meta.label}${card?.sector ? ` - ${SECTOR_META[card.sector]?.label}` : ''}`}
+      title={faceDown ? "Unknown Card" : meta.label}
     >
       <div className="card-flip-inner w-full h-full relative" style={{ transformStyle: 'preserve-3d', transition: 'transform 0.6s' }}>
         {/* Front face (shown when NOT face-down) */}
@@ -51,8 +53,13 @@ export default function Card({ card, faceDown = false, selected = false, onClick
           ) : (
             <FallbackCardFace card={card} meta={meta} sectorMeta={sectorMeta} small={small} large={large} />
           )}
+          {large && !faceDown && (
+            <div className="absolute inset-x-0 bottom-0 bg-black/80 py-1.5 px-1 text-center border-t border-gray-600/50 backdrop-blur-sm z-10">
+               <span className="font-bold text-xs uppercase tracking-wider text-white drop-shadow-sm">{meta.label}</span>
+            </div>
+          )}
           {selected && (
-            <div className="absolute inset-0 rounded-xl border-2 border-yellow-400 animate-pulse pointer-events-none" />
+            <div className="absolute inset-0 rounded-xl border-2 border-yellow-400 animate-pulse pointer-events-none z-20" />
           )}
         </div>
 

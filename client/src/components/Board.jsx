@@ -23,18 +23,7 @@ export default function Board() {
 
       {/* Mission Banner */}
       {myPlayer?.missions?.length > 0 && (
-        <div className="flex flex-col gap-1 shrink-0 px-1">
-          {myPlayer.missions.map(m => (
-            <div key={m.id} className={`text-[10px] px-2 py-1.5 rounded-md border flex items-center justify-between shadow-sm ${m.missionType === 'market' ? 'bg-yellow-950/40 border-yellow-700/50 text-yellow-200' : 'bg-purple-950/40 border-purple-700/50 text-purple-200'}`}>
-              <div className="flex items-center gap-1.5 overflow-hidden">
-                <span className="text-xs shrink-0">{m.missionType === 'market' ? '📊' : '🎯'}</span>
-                <span className="font-bold uppercase tracking-wider shrink-0">{m.name}:</span>
-                <span className="text-gray-300 truncate" title={m.description}>{m.description}</span>
-              </div>
-              <span className="font-bold shrink-0 ml-2">+{m.bonusPoints}</span>
-            </div>
-          ))}
-        </div>
+        <MissionBanners missions={myPlayer.missions} />
       )}
 
       {/* Opponent portfolios (compact, top) */}
@@ -267,6 +256,46 @@ function GlobalMarketTrack({ marketData }) {
         <Zone label="BULL" cards={bull} bgColor="bg-green-950/40" borderColor="border-green-800" labelColor="text-green-400" />
         <Zone label="BEAR" cards={bear} bgColor="bg-red-950/40" borderColor="border-red-800" labelColor="text-red-400" />
       </div>
+    </div>
+  );
+}
+
+function MissionBanners({ missions }) {
+  const [expandedId, setExpandedId] = useState(null);
+
+  return (
+    <div className="flex flex-col gap-1 shrink-0 px-1">
+      {missions.map(m => {
+        const isExpanded = expandedId === m.id;
+        const colorClass = m.missionType === 'market' 
+          ? 'bg-yellow-950/40 border-yellow-700/50 text-yellow-200' 
+          : 'bg-purple-950/40 border-purple-700/50 text-purple-200';
+          
+        return (
+          <div 
+            key={m.id} 
+            onClick={() => setExpandedId(isExpanded ? null : m.id)}
+            className={`text-[10px] px-2 py-1.5 rounded-md border flex flex-col shadow-sm cursor-pointer transition-colors hover:brightness-110 ${colorClass}`}
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5 overflow-hidden">
+                <span className="text-xs shrink-0">{m.missionType === 'market' ? '📊' : '🎯'}</span>
+                <span className="font-bold uppercase tracking-wider shrink-0">{m.name}:</span>
+                {!isExpanded && <span className="text-gray-300 truncate">{m.description}</span>}
+              </div>
+              <span className="font-bold shrink-0 ml-2">{isExpanded ? '▼' : '▶'}</span>
+            </div>
+            
+            {isExpanded && (
+              <div className="mt-2 text-gray-300 whitespace-normal leading-relaxed pl-5 border-t border-white/10 pt-2 pb-1">
+                <p>{m.description}</p>
+                <p className="mt-1 font-bold text-white">Bonus: {m.bonusLabel}</p>
+                <p className="mt-1 italic text-gray-400 text-[9px]">(Scored at end of game)</p>
+              </div>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }

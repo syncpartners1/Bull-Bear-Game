@@ -117,7 +117,7 @@ export default function Hand() {
   }
 
   return (
-    <div className="rounded-xl border border-yellow-600/50 bg-gray-900/80 p-3 flex flex-col gap-3">
+    <div className="rounded-xl border border-yellow-600/50 bg-gray-900/80 p-3 flex flex-col gap-2">
       {/* Step indicator */}
       <div className="flex items-center justify-between mb-1">
         <span className="text-sm md:text-base font-extrabold text-white">Play {3 - remainingActions.length + 1} of 3</span>
@@ -126,88 +126,94 @@ export default function Hand() {
 
       {/* Cards in hand / Selected Zoomed */}
       {selectedCard ? (
-        <div className="flex flex-col items-center gap-2">
-          <Card
-            card={selectedCard}
-            faceDown={false}
-            large
-            selected={true}
-            onClick={() => { setSelectedCard(null); setSelectedAction(null); setPivotSector(null); }}
-          />
-          <p className="text-[10px] text-gray-500 italic">Tap card to unselect</p>
+        <div className="flex flex-row items-center justify-center gap-3 w-full">
+          {/* Card Side */}
+          <div className="flex flex-col items-center shrink-0">
+            <Card
+              card={selectedCard}
+              faceDown={false}
+              large
+              selected={true}
+              onClick={() => { setSelectedCard(null); setSelectedAction(null); setPivotSector(null); }}
+            />
+            <p className="text-[10px] text-gray-500 italic mt-1">Tap card to unselect</p>
+          </div>
           
-          {!selectedAction && (
-            <div className="flex flex-col gap-2 w-full max-w-sm mt-2">
-              <p className="text-xs text-center text-gray-400">Where do you want to play this card?</p>
-              <div className="flex flex-col gap-2">
+          {/* Actions / Targets Side */}
+          <div className="flex flex-col flex-1 min-w-0 max-h-[200px] overflow-y-auto pr-1">
+            {!selectedAction ? (
+              <div className="flex flex-col gap-2 w-full justify-center h-full">
+                <p className="text-[10px] text-center text-gray-400 leading-tight">Where to play?</p>
                 {remainingActions.includes('portfolio') && (
-                  <button onClick={() => setSelectedAction('portfolio')} className="rounded-lg py-3 bg-yellow-900/50 border border-yellow-700 text-yellow-300 font-bold hover:bg-yellow-800/50 transition-colors shadow-sm">My Portfolio</button>
+                  <button onClick={() => setSelectedAction('portfolio')} className="rounded-md py-2 px-1 bg-yellow-900/50 border border-yellow-700 text-yellow-300 font-bold text-[11px] uppercase tracking-wider hover:bg-yellow-800/50 shadow-sm truncate">My Portfolio</button>
                 )}
                 {remainingActions.includes('market') && (
-                  <button onClick={() => setSelectedAction('market')} className="rounded-lg py-3 bg-blue-900/50 border border-blue-700 text-blue-300 font-bold hover:bg-blue-800/50 transition-colors shadow-sm">The Market</button>
+                  <button onClick={() => setSelectedAction('market')} className="rounded-md py-2 px-1 bg-blue-900/50 border border-blue-700 text-blue-300 font-bold text-[11px] uppercase tracking-wider hover:bg-blue-800/50 shadow-sm truncate">The Market</button>
                 )}
                 {remainingActions.includes('opponent') && (
-                  <button onClick={() => setSelectedAction('opponent')} className="rounded-lg py-3 bg-red-900/50 border border-red-700 text-red-300 font-bold hover:bg-red-800/50 transition-colors shadow-sm">An Opponent</button>
+                  <button onClick={() => setSelectedAction('opponent')} className="rounded-md py-2 px-1 bg-red-900/50 border border-red-700 text-red-300 font-bold text-[11px] uppercase tracking-wider hover:bg-red-800/50 shadow-sm truncate">An Opponent</button>
                 )}
               </div>
-            </div>
-          )}
+            ) : (
+              <div className="flex flex-col gap-2 w-full">
+                <div className="flex items-center justify-between">
+                   <span className="text-[10px] text-gray-400">Target</span>
+                   <button onClick={() => setSelectedAction(null)} className="text-[10px] text-yellow-400 underline">Change Action</button>
+                </div>
+
+                {selectedAction === 'market' && (
+                  selectedCard.type === 'insider_trading' ? (
+                    <div className="origin-top flex flex-col gap-1 -mx-2 scale-90"><HiddenMarketTargetSelector selectedZone={selectedZone} onSelect={setSelectedZone} /></div>
+                  ) : (
+                    <div className="origin-top flex flex-col gap-1 -mx-2 scale-90"><MarketTargetSelector selectedSector={selectedSector} selectedZone={selectedZone} cardSector={selectedCard?.type === 'pivot' ? null : selectedCard?.sector} onSelect={(sector, zone) => { setSelectedSector(sector); setSelectedZone(zone); }} /></div>
+                  )
+                )}
+
+                {selectedAction === 'opponent' && (
+                  <div className="origin-top flex flex-col gap-1 -mx-2 scale-90"><OpponentSelector opponents={opponents} selectedId={selectedOpponent} onSelect={setSelectedOpponent} /></div>
+                )}
+
+                {isPivot && (selectedAction === 'portfolio' || selectedAction === 'opponent') && (
+                  <div className="origin-top flex flex-col gap-1 -mx-2 scale-90"><PivotSectorSelector selectedSector={pivotSector} onSelect={setPivotSector} /></div>
+                )}
+
+                {/* Confirm button inside right pane */}
+                <button
+                  disabled={!canConfirm}
+                  onClick={handleConfirm}
+                  className={`rounded-lg py-2 mt-1 w-full text-sm font-bold transition-colors shadow-md
+                    ${canConfirm
+                      ? 'bg-yellow-500 text-black hover:bg-yellow-400 active:bg-yellow-600'
+                      : 'bg-gray-700 text-gray-500 cursor-not-allowed'}`}
+                >
+                  Confirm
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       ) : (
-        <div className="flex gap-2 justify-center">
-          {myTurnCards.map((card) => (
-            <Card
-              key={card.id}
-              card={card}
-              faceDown={false}
-              selected={false}
-              onClick={() => { setSelectedCard(card); setPivotSector(null); }}
-            />
-          ))}
+        <div className="flex flex-col gap-3">
+          <div className="flex gap-2 justify-center">
+            {myTurnCards.map((card) => (
+              <Card
+                key={card.id}
+                card={card}
+                faceDown={false}
+                selected={false}
+                onClick={() => { setSelectedCard(card); setPivotSector(null); }}
+              />
+            ))}
+          </div>
+          {/* Default disabled confirm button when no card selected to maintain structure consistency */}
+          <button
+            disabled={true}
+            className={`rounded-lg py-2 w-full text-sm font-bold transition-colors bg-gray-700 text-gray-500 cursor-not-allowed`}
+          >
+            Confirm
+          </button>
         </div>
       )}
-
-      {/* Step-specific targeting */}
-      {selectedCard && selectedAction === 'market' && (
-        selectedCard.type === 'insider_trading' ? (
-          <HiddenMarketTargetSelector
-            selectedZone={selectedZone}
-            onSelect={(zone) => setSelectedZone(zone)}
-          />
-        ) : (
-          <MarketTargetSelector
-            selectedSector={selectedSector}
-            selectedZone={selectedZone}
-            cardSector={selectedCard?.type === 'pivot' ? null : selectedCard?.sector}
-            onSelect={(sector, zone) => { setSelectedSector(sector); setSelectedZone(zone); }}
-          />
-        )
-      )}
-
-      {selectedCard && selectedAction === 'opponent' && (
-        <OpponentSelector
-          opponents={opponents}
-          selectedId={selectedOpponent}
-          onSelect={setSelectedOpponent}
-        />
-      )}
-
-      {/* Pivot sector picker — shown when a Pivot card is played to portfolio or opponent */}
-      {isPivot && (selectedAction === 'portfolio' || selectedAction === 'opponent') && (
-        <PivotSectorSelector selectedSector={pivotSector} onSelect={setPivotSector} />
-      )}
-
-      {/* Confirm button */}
-      <button
-        disabled={!canConfirm}
-        onClick={handleConfirm}
-        className={`rounded-lg py-2 text-sm font-bold transition-colors
-          ${canConfirm
-            ? 'bg-yellow-500 text-black hover:bg-yellow-400 active:bg-yellow-600'
-            : 'bg-gray-700 text-gray-500 cursor-not-allowed'}`}
-      >
-        Confirm
-      </button>
     </div>
   );
 }
