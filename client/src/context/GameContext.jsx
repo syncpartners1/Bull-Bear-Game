@@ -18,8 +18,10 @@ function gameReducer(state, action) {
       return { ...state, lobby: action.lobby };
     case 'GAME_STARTED':
       return { ...state, phase: 'playing' };
-    case 'GAME_STATE':
-      return { ...state, gameState: action.gameState };
+    case 'GAME_STATE': {
+      const updatedMe = action.gameState?.players?.find(p => p.id === state.myPlayer?.id) || state.myPlayer;
+      return { ...state, gameState: action.gameState, myPlayer: updatedMe };
+    }
     case 'TURN_STARTED':
       return {
         ...state,
