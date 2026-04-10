@@ -20,10 +20,16 @@ export function createLobby(gameId, hostPlayer) {
 export function joinLobby(gameId, player) {
   const lobby = lobbies.get(gameId);
   if (!lobby) return { error: 'Game not found' };
-  if (lobby.players.length >= 4) return { error: 'Game is full (max 4 players)' };
-  if (lobby.players.some((p) => p.telegramId === player.telegramId)) {
-    return { error: 'Already in this game' };
+  
+  // Handle re-entry: if player with same telegramId exists, update their socketId and return success
+  const existingIndex = lobby.players.findIndex((p) => p.telegramId === player.telegramId);
+  if (existingIndex !== -1) {
+    lobby.players[existingIndex].socketId = player.socketId;
+    return { lobby };
   }
+
+  if (lobby.players.length >= 4) return { error: 'Game is full (max 4 players)' };
+  
   lobby.players.push(player);
   return { lobby };
 }
@@ -31,7 +37,17 @@ export function joinLobby(gameId, player) {
 export function leaveLobby(gameId, socketId) {
   const lobby = lobbies.get(gameId);
   if (!lobby) return null;
+  
+  const playerLeaving = lobby.players.find((p) => p.socketId === socketId);
+  if (!playerLeaving) return lobby;
+
   lobby.players = lobby.players.filter((p) => p.socketId !== socketId);
+  
+  // If the host left, migrate hostId to the next player
+  if (lobby.hostId === playerLeaving.id && lobby.players.length > 0) {
+    lobby.hostId = lobby.players[0].id;
+  }
+
   if (lobby.players.length === 0) lobbies.delete(gameId);
   return lobby;
 }

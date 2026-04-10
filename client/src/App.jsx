@@ -15,7 +15,7 @@ function getTelegramUser() {
       const u = tg.initDataUnsafe.user;
       return {
         telegramId: String(u.id),
-        name: (u.first_name + (u.last_name ? ` ${u.last_name}` : '')) || u.username || 'Player',
+        name: u.username ? `@${u.username}` : ((u.first_name + (u.last_name ? ` ${u.last_name}` : '')) || u.username || 'Player'),
       };
     }
   } catch (_) {}
@@ -303,13 +303,31 @@ function LobbyPage() {
             <p className="text-xs text-gray-400 mb-1">Game ID — share with friends</p>
             <div className="flex items-center gap-2">
               <p className="text-2xl font-mono font-bold tracking-widest text-yellow-300">{gameId}</p>
-              <button
-                onClick={() => navigator.clipboard?.writeText(gameId)}
-                className="text-[10px] text-gray-500 hover:text-yellow-300 border border-gray-600 rounded px-1.5 py-0.5 transition-colors"
-                title="Copy"
-              >
-                Copy
-              </button>
+              <div className="flex gap-2 ml-auto">
+                <button
+                  onClick={() => {
+                    const url = `https://t.me/share/url?url=${encodeURIComponent(window.location.origin + '?startapp=' + gameId)}&text=${encodeURIComponent('Join my Bull & Bear game!')}`;
+                    if (window.Telegram?.WebApp?.openTelegramLink) {
+                      window.Telegram.WebApp.openTelegramLink(url);
+                    } else {
+                      window.open(url, '_blank');
+                    }
+                  }}
+                  className="text-xs bg-blue-600 text-white hover:bg-blue-500 rounded px-3 py-1 font-bold transition-colors"
+                >
+                  Invite
+                </button>
+                <button
+                  onClick={() => {
+                    navigator.clipboard?.writeText(gameId);
+                    window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('success');
+                  }}
+                  className="text-[10px] text-gray-500 hover:text-yellow-300 border border-gray-600 rounded px-1.5 py-0.5 transition-colors"
+                  title="Copy ID"
+                >
+                  Copy
+                </button>
+              </div>
             </div>
           </div>
 
@@ -355,16 +373,17 @@ function LobbyPage() {
             </div>
           )}
 
-          {isHost ? (
-            <button
-              onClick={handleStart}
-              disabled={!canStart}
-              className="rounded-xl py-3 bg-green-600 text-white font-bold text-sm hover:bg-green-500 disabled:opacity-50 transition-colors"
-            >
-              {canStart ? `Start Game (${totalWithAI} players)` : totalWithAI > 4 ? 'Maximum 4 players' : 'Need at least 2 players total'}
-            </button>
-          ) : (
-            <p className="text-center text-sm text-gray-400">Waiting for host to start…</p>
+          <button
+            onClick={handleStart}
+            disabled={!canStart}
+            className="rounded-xl py-3 bg-green-600 text-white font-bold text-sm hover:bg-green-500 disabled:opacity-50 transition-colors"
+          >
+            {canStart ? `Start Game (${totalWithAI} players)` : totalWithAI > 4 ? 'Maximum 4 players' : 'Need at least 2 players total'}
+          </button>
+          {!isHost && (
+            <p className="text-center text-[10px] text-gray-500">
+              Only the host can adjust AI bots, but anyone can start the game.
+            </p>
           )}
         </div>
       )}

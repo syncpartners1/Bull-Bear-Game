@@ -291,7 +291,7 @@ export function registerHandlers(io, socket) {
     const verifiedUser = auth.data?.user;
     const resolvedTelegramId = String(verifiedUser?.id ?? telegramId ?? socket.id);
     const resolvedName = verifiedUser
-      ? (verifiedUser.first_name + (verifiedUser.last_name ? ` ${verifiedUser.last_name}` : ''))
+      ? (verifiedUser.username ? `@${verifiedUser.username}` : (verifiedUser.first_name + (verifiedUser.last_name ? ` ${verifiedUser.last_name}` : '')))
       : (name || 'Player');
 
     const player = {
@@ -342,9 +342,12 @@ export function registerHandlers(io, socket) {
     const { lobby, error } = joinLobby(gameId, player);
     if (error) { emitError(socket, error); return; }
 
+    // On re-entry, we need to find the actual player object (it might have a different internal UUID but same telegramId)
+    const activePlayer = lobby.players.find(p => p.telegramId === player.telegramId) || player;
+
     socket.join(gameId);
     registerSocket(socket.id, gameId);
-    socket.emit('joined_game', { gameId, player });
+    socket.emit('joined_game', { gameId, player: activePlayer });
     broadcastToRoom(io, gameId, 'lobby_updated', lobby);
   });
 
@@ -355,9 +358,12 @@ export function registerHandlers(io, socket) {
     if (!lobby) { emitError(socket, 'Lobby not found'); return; }
 
     const requesting = lobby.players.find((p) => p.socketId === socket.id);
-    if (!requesting || requesting.id !== lobby.hostId) {
-      emitError(socket, 'Only the host can start the game'); return;
+    if (!requesting) {
+      emitError(socket, 'You are not in this lobby'); return;
     }
+
+    // Relaxed restriction: Anyone can start the game now.
+    // If we wanted to keep some order, we could check if host exists but user requested "any player can start".
 
     const numAI      = Math.max(0, Math.min(4, Number(aiCount) || 0));
     const totalCount = lobby.players.length + numAI;
