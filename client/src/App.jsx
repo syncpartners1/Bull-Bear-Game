@@ -8,20 +8,44 @@ import logoSrc from './assets/Bull_and_Bear_logo.png';
 
 // ─── Telegram bootstrap ───────────────────────────────────────────────────────
 
-function getTelegramUser() {
-  try {
+function useTelegramUser() {
+  const [userInfo, setUserInfo] = useState(() => {
+    // Initial sync check
     const tg = window.Telegram?.WebApp;
     if (tg?.initDataUnsafe?.user) {
       const u = tg.initDataUnsafe.user;
       return {
         telegramId: String(u.id),
-        name: u.username ? `@${u.username}` : ((u.first_name + (u.last_name ? ` ${u.last_name}` : '')) || u.username || 'Player'),
+        name: u.username ? `@${u.username}` : ((u.first_name + (u.last_name ? ` ${u.last_name}` : '')) || 'Player'),
       };
     }
-  } catch (_) {}
-  const id = localStorage.getItem('bb_devId') || String(Math.floor(Math.random() * 9000) + 1000);
-  localStorage.setItem('bb_devId', id);
-  return { telegramId: id, name: `Player_${id.slice(-3)}` };
+    const id = localStorage.getItem('bb_devId') || String(Math.floor(Math.random() * 9000) + 1000);
+    localStorage.setItem('bb_devId', id);
+    return { telegramId: id, name: `Player_${id.slice(-3)}` };
+  });
+
+  useEffect(() => {
+    const tg = window.Telegram?.WebApp;
+    if (!tg) return;
+
+    // Polling check for late initialization (common on Desktop)
+    const interval = setInterval(() => {
+      if (tg.initDataUnsafe?.user) {
+        const u = tg.initDataUnsafe.user;
+        const newName = u.username ? `@${u.username}` : ((u.first_name + (u.last_name ? ` ${u.last_name}` : '')) || 'Player');
+        const newId = String(u.id);
+
+        if (newId !== userInfo.telegramId || newName !== userInfo.name) {
+          setUserInfo({ telegramId: newId, name: newName });
+          clearInterval(interval);
+        }
+      }
+    }, 500);
+
+    return () => clearInterval(interval);
+  }, [userInfo.telegramId, userInfo.name]);
+
+  return userInfo;
 }
 
 /** Read ?mode=ai or ?startapp=GAMEID from the URL (Telegram deep-links) */
@@ -134,7 +158,7 @@ function LogoOrTitle() {
 // ─── Lobby page ───────────────────────────────────────────────────────────────
 
 function LobbyPage() {
-  const { telegramId, name } = getTelegramUser();
+  const { telegramId, name } = useTelegramUser();
   const { startGameId, aiMode: startInAiMode } = getStartParams();
 
   const {
@@ -410,13 +434,13 @@ function LobbyPage() {
 function GamePage() {
   const { gameId: routeGameId } = useParams();
   const { gameState, joinGame, connected } = useGame();
+  const { telegramId, name } = useTelegramUser();
 
   useEffect(() => {
     if (!gameState && connected && routeGameId) {
-      const { telegramId, name } = getTelegramUser();
       joinGame(routeGameId, telegramId, name);
     }
-  }, [connected, gameState, routeGameId, joinGame]);
+  }, [connected, gameState, routeGameId, joinGame, telegramId, name]);
 
   return <Board />;
 }
