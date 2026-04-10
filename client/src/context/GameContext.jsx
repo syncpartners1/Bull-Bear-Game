@@ -42,7 +42,13 @@ function gameReducer(state, action) {
       return { ...state, pendingAbility: false };
     case 'GAME_OVER':
       return { ...state, finalScores: action.scores, winnerId: action.winnerId, phase: 'finished' };
+    case 'LEFT_GAME':
+      return { ...state, gameId: null, lobby: null, phase: 'lobby' };
     case 'ERROR':
+      // Stuck prevention: if game not found, clear ID
+      if (action.message.includes('not found')) {
+        return { ...state, gameId: null, lobby: null, phase: 'lobby', lastError: action.message };
+      }
       return { ...state, lastError: action.message };
     case 'CLEAR_ERROR':
       return { ...state, lastError: null };
@@ -88,6 +94,7 @@ export function GameProvider({ children }) {
     socket.on('hostile_takeover_activated',(data) => dispatch({ type: 'HOSTILE_TAKEOVER_ACTIVATED', ...data }));
     socket.on('hostile_takeover_skipped', (data) => dispatch({ type: 'HOSTILE_TAKEOVER_SKIPPED', ...data }));
     socket.on('game_over',                (data) => dispatch({ type: 'GAME_OVER', ...data }));
+    socket.on('left_game',                (data) => dispatch({ type: 'LEFT_GAME', ...data }));
     socket.on('error',                    (data) => dispatch({ type: 'ERROR', message: data.message }));
 
     return () => {
@@ -147,6 +154,12 @@ export function GameProvider({ children }) {
     socket.emit('skip_hostile_takeover', { gameId: state.gameId });
   }, [socket, state.gameId]);
 
+  const leaveGame = useCallback(() => {
+    if (!state.gameId) return;
+    socket.emit('leave_game', { gameId: state.gameId });
+    localStorage.removeItem('bb_last_game_id');
+  }, [socket, state.gameId]);
+
   const clearError = useCallback(() => dispatch({ type: 'CLEAR_ERROR' }), []);
 
   const value = {
@@ -158,6 +171,7 @@ export function GameProvider({ children }) {
     allocateCard,
     activateHostileTakeover,
     skipHostileTakeover,
+    leaveGame,
     clearError,
   };
 

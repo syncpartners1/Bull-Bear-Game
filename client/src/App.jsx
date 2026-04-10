@@ -19,8 +19,8 @@ function getTelegramUser() {
       };
     }
   } catch (_) {}
-  const id = sessionStorage.getItem('devId') || String(Math.floor(Math.random() * 9000) + 1000);
-  sessionStorage.setItem('devId', id);
+  const id = localStorage.getItem('bb_devId') || String(Math.floor(Math.random() * 9000) + 1000);
+  localStorage.setItem('bb_devId', id);
   return { telegramId: id, name: `Player_${id.slice(-3)}` };
 }
 
@@ -138,7 +138,7 @@ function LobbyPage() {
   const { startGameId, aiMode: startInAiMode } = getStartParams();
 
   const {
-    createGame, joinGame, startGame,
+    createGame, joinGame, startGame, leaveGame,
     lobby, myPlayer, gameId, phase,
     connected, lastError, clearError,
   } = useGame();
@@ -196,6 +196,10 @@ function LobbyPage() {
 
   function handleStart() {
     startGame(aiCount);
+  }
+
+  function handleLeave() {
+    leaveGame();
   }
 
   return (
@@ -380,6 +384,14 @@ function LobbyPage() {
           >
             {canStart ? `Start Game (${totalWithAI} players)` : totalWithAI > 4 ? 'Maximum 4 players' : 'Need at least 2 players total'}
           </button>
+          
+          <button
+            onClick={handleLeave}
+            className="rounded-xl py-2 bg-gray-700 text-gray-300 text-xs hover:bg-gray-600 transition-colors"
+          >
+            Leave Lobby
+          </button>
+
           {!isHost && (
             <p className="text-center text-[10px] text-gray-500">
               Only the host can adjust AI bots, but anyone can start the game.

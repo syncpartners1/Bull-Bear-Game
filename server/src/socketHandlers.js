@@ -342,7 +342,7 @@ export function registerHandlers(io, socket) {
     const { lobby, error } = joinLobby(gameId, player);
     if (error) { emitError(socket, error); return; }
 
-    // On re-entry, we need to find the actual player object (it might have a different internal UUID but same telegramId)
+    // On re-entry, find the original player object to keep UUID stable
     const activePlayer = lobby.players.find(p => p.telegramId === player.telegramId) || player;
 
     socket.join(gameId);
@@ -362,7 +362,7 @@ export function registerHandlers(io, socket) {
       emitError(socket, 'You are not in this lobby'); return;
     }
 
-    // Relaxed restriction: Anyone can start the game now.
+    // Anyone can start the game now.
     // If we wanted to keep some order, we could check if host exists but user requested "any player can start".
 
     const numAI      = Math.max(0, Math.min(4, Number(aiCount) || 0));
@@ -500,6 +500,16 @@ export function registerHandlers(io, socket) {
     }
     
     socket.emit('hostile_takeover_skipped', { gameId });
+  });
+
+  // ── leave_game ───────────────────────────────────────────────────────────
+  socket.on('leave_game', ({ gameId }) => {
+    const lobby = leaveLobby(gameId, socket.id);
+    if (lobby) {
+      broadcastToRoom(io, gameId, 'lobby_updated', lobby);
+    }
+    socket.leave(gameId);
+    socket.emit('left_game', { gameId });
   });
 
   // ── nudge_ai ──────────────────────────────────────────────────────────────
